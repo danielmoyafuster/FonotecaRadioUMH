@@ -1,6 +1,7 @@
 import pandas as pd
 import streamlit as st
 import os
+
 st.sidebar.markdown(
     """
     <div style="text-align: center; margin-top: 20px; margin-bottom: 20px;">
@@ -19,10 +20,7 @@ st.sidebar.markdown(
 # Ruta del archivo Excel
 input_excel_path = "FONOTECA_CD_UMH_SPOTIFY.xlsx"
 
-
-
 # Función para cargar los datos existentes
-@st.cache_data
 def cargar_datos():
     if os.path.exists(input_excel_path):
         return pd.read_excel(input_excel_path)
@@ -36,12 +34,13 @@ datos = cargar_datos()
 
 # Buscar registros
 st.write("### Buscar registros:")
-query = st.text_input("🔍 Busca por AUTOR, NOMBRE CD o TÍTULO:")
+query = st.text_input("🔍 Busca por Nº, AUTOR, NOMBRE CD o TÍTULO:")
 
 if query:
     # Filtrar registros por la consulta
     resultados = datos[
-        datos["AUTOR"].str.contains(query, case=False, na=False)
+        datos["Nº"].astype(str).str.contains(query, case=False, na=False)
+        | datos["AUTOR"].str.contains(query, case=False, na=False)
         | datos["NOMBRE CD"].str.contains(query, case=False, na=False)
         | datos["TITULO"].str.contains(query, case=False, na=False)
     ]

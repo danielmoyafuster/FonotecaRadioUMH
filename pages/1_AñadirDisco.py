@@ -3,20 +3,7 @@ import streamlit as st
 import os
 from spotipy.oauth2 import SpotifyClientCredentials
 import spotipy
-st.sidebar.markdown(
-    """
-    <div style="text-align: center; margin-top: 20px; margin-bottom: 20px;">
-        <a href="https://radio.umh.es/" target="_blank">
-            <img src="https://radio.umh.es/files/2023/07/FOTO-PERFIL-RADIO.png" 
-                 alt="Radio UMH" 
-                 style="width: 150px; border-radius: 10px; margin-bottom: 10px;">
-        </a>
-        <p style="font-size: 16px; font-weight: bold; color: #333;">Gestión de la Fonoteca</p>
-        <hr style="border: none; border-top: 1px solid #ccc; margin: 10px 0;">
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
+
 # Configurar credenciales de Spotify
 CLIENT_ID = "f539334f19094e47ae8df45cc373cce9"
 CLIENT_SECRET = "62f90ff98a2d4602968a488129aeae31"
@@ -70,26 +57,41 @@ with st.form("formulario_alta", clear_on_submit=True):
     submit = st.form_submit_button("Añadir registro y buscar canciones")
 
     if submit:
-        if nuevo_numero and nuevo_autor and nuevo_nombre_cd:
-            # Buscar canciones en Spotify
-            canciones = buscar_canciones(nuevo_autor, nuevo_nombre_cd)
+        st.write("Iniciando proceso de añadir registro...")
+        st.write(f"Datos ingresados: Nº={nuevo_numero}, AUTOR={nuevo_autor}, NOMBRE CD={nuevo_nombre_cd}")
 
-            if canciones:
-                # Crear un DataFrame para las canciones encontradas
-                canciones_df = pd.DataFrame(canciones)
-                canciones_df["Nº"] = nuevo_numero
-                canciones_df["AUTOR"] = nuevo_autor
-                canciones_df["NOMBRE CD"] = nuevo_nombre_cd
-
-                # Concatenar el nuevo registro
-                datos = pd.concat([datos, canciones_df], ignore_index=True)
-
-                # Guardar datos en Excel
-                guardar_datos(datos)
-
-                # Mostrar mensaje de éxito
-                st.success(f"🎉 Se añadieron {len(canciones)} canciones del álbum '{nuevo_nombre_cd}' por '{nuevo_autor}'.")
-            else:
-                st.warning("⚠️ No se encontraron canciones para este álbum en Spotify.")
-        else:
+        if not (nuevo_numero and nuevo_autor and nuevo_nombre_cd):
             st.error("Por favor, completa todos los campos antes de añadir el registro.")
+            st.stop()
+
+        # Buscar canciones en Spotify
+        canciones = buscar_canciones(nuevo_autor, nuevo_nombre_cd)
+        st.write(f"Se encontraron {len(canciones)} canciones para el álbum '{nuevo_nombre_cd}' de '{nuevo_autor}'.")
+
+        if not canciones:
+            st.warning("⚠️ No se encontraron canciones para este álbum en Spotify.")
+            st.stop()
+
+        # Crear DataFrame con las canciones encontradas
+        canciones_df = pd.DataFrame(canciones)
+        canciones_df["Nº"] = nuevo_numero
+        canciones_df["AUTOR"] = nuevo_autor
+        canciones_df["NOMBRE CD"] = nuevo_nombre_cd
+
+        # Concatenar al DataFrame existente
+        datos = pd.concat([datos, canciones_df], ignore_index=True)
+
+        # Guardar datos en Excel
+        try:
+            guardar_datos(datos)
+            st.success(f"🎉 Se añadieron {len(canciones)} canciones del álbum '{nuevo_nombre_cd}' por '{nuevo_autor}'.")
+        except PermissionError:
+            st.error("⚠️ No se puede guardar el archivo. Asegúrate de que no está abierto en otro programa.")
+            st.stop()
+        except Exception as e:
+            st.error(f"Error al guardar los datos: {e}")
+            st.stop()
+
+        # Recargar datos después de guardar
+        datos = cargar_datos()
+        st.write("✅ Datos recargados después de guardar.")
