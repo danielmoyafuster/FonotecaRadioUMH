@@ -1,7 +1,9 @@
 import pandas as pd
 import streamlit as st
 import os
-
+#
+# ACTUALIZACIÓN 27/01/25 13:16
+#
 st.sidebar.markdown(
     """
     <div style="text-align: center; margin-top: 20px; margin-bottom: 20px;">
