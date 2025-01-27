@@ -18,7 +18,7 @@ input_excel_path = "FONOTECA_CD_UMH_SPOTIFY.xlsx"
 def cargar_datos():
     if os.path.exists(input_excel_path):
         return pd.read_excel(input_excel_path)
-    return pd.DataFrame(columns=["Nº", "AUTOR", "NOMBRE CD", "TITULO", "URL", "ID"])
+    return pd.DataFrame(columns=["Nº", "AUTOR", "NOMBRE CD", "TITULO", "URL", "ID", "IMAGEN_URL"])
 
 # Guardar datos en el archivo Excel
 def guardar_datos(df):
@@ -28,18 +28,21 @@ def guardar_datos(df):
 def buscar_canciones(autor, nombre_cd):
     resultados = sp.search(q=f"album:{nombre_cd} artist:{autor}", type="album", limit=1)
     if resultados["albums"]["items"]:
-        album_id = resultados["albums"]["items"][0]["id"]
+        album = resultados["albums"]["items"][0]
+        album_id = album["id"]
+        album_image_url = album["images"][0]["url"] if album["images"] else None  # URL de la imagen del álbum
         album_tracks = sp.album_tracks(album_id)
         canciones = [
             {
                 "TITULO": track["name"],
                 "URL": track["external_urls"]["spotify"],
                 "ID": track["id"],
+                "IMAGEN_URL": album_image_url  # Agregar la URL de la imagen
             }
             for track in album_tracks["items"]
         ]
-        return canciones
-    return []
+        return canciones, album_image_url  # Devolver también la URL de la imagen
+    return [], None
 
 # Título de la página
 st.title("Fonoteca de Radio UMH - Añadir CD")
@@ -65,7 +68,7 @@ with st.form("formulario_alta", clear_on_submit=True):
             st.stop()
 
         # Buscar canciones en Spotify
-        canciones = buscar_canciones(nuevo_autor, nuevo_nombre_cd)
+        canciones, album_image_url = buscar_canciones(nuevo_autor, nuevo_nombre_cd)
         st.write(f"Se encontraron {len(canciones)} canciones para el álbum '{nuevo_nombre_cd}' de '{nuevo_autor}'.")
 
         if not canciones:
@@ -95,3 +98,9 @@ with st.form("formulario_alta", clear_on_submit=True):
         # Recargar datos después de guardar
         datos = cargar_datos()
         st.write("✅ Datos recargados después de guardar.")
+
+        # Mostrar la imagen del álbum debajo de la lista
+        if album_image_url:
+            st.image(album_image_url, caption=f"Carátula de '{nuevo_nombre_cd}' - {nuevo_autor}", use_container_width=True)
+        else:
+            st.warning("⚠️ No se encontró imagen para este álbum.")
