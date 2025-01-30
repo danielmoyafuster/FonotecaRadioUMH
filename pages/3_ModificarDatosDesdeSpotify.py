@@ -36,6 +36,8 @@ CLIENT_SECRET = "62f90ff98a2d4602968a488129aeae31"
 # 📌 Nombre del archivo Excel
 EXCEL_FILE = "FONOTECA_CD_UMH_SPOTIFY.xlsx"
 
+
+
 # 📌 Función para obtener el token de Spotify
 def get_spotify_token():
     url = "https://accounts.spotify.com/api/token"
@@ -58,86 +60,97 @@ def get_album_by_id(album_id, token):
 
     response = requests.get(url, headers=headers)
     if response.status_code == 200:
-        return response.json()
+        album_info = response.json()
+        return {
+            "id": album_info["id"],
+            "name": album_info["name"],
+            "artist": album_info["artists"][0]["name"],
+            "url": album_info["external_urls"]["spotify"],
+            "image_url": album_info["images"][0]["url"] if album_info["images"] else None,
+            "tracks": [
+                {"title": track["name"], "url": track["external_urls"]["spotify"]}
+                for track in album_info["tracks"]["items"]
+            ]
+        }
     else:
         st.error(f"⚠️ Error en la API de Spotify: {response.text}")
     return None  
 
-# 📌 Cargar archivo Excel
-@st.cache_data
+# 📌 Función para cargar datos sin caché persistente
 def load_excel():
-    try:
-        return pd.read_excel(EXCEL_FILE, engine="openpyxl")
-    except FileNotFoundError:
-        st.error("❌ No se encontró el archivo Excel.")
-        return pd.DataFrame()
+    return pd.read_excel(EXCEL_FILE, engine="openpyxl")
 
-# 📌 Cargar datos iniciales
+st.title("🔍 Corrección de Álbumes No Encontrados - Spotify")
+
+# 📌 Inicializar session_state para el ID del álbum si no existe
+if "album_id" not in st.session_state:
+    st.session_state["album_id"] = ""
+
+# 📌 Botón para actualizar la lista y limpiar el campo de texto
+if st.button("🔄 Actualizar Lista"):
+    df = load_excel()  # Recargar datos
+    df_no_encontrados = df[df["TITULO"] == "Álbum no encontrado"]
+    st.session_state["album_id"] = ""  # 🔹 Limpiar el cuadro de texto
+    st.experimental_rerun()
+
+# 📌 Cargar el archivo en cada ejecución
 df = load_excel()
 df_no_encontrados = df[df["TITULO"] == "Álbum no encontrado"]
 
-st.title("Corrección de Álbumes No Encontrados - Spotify")
-
-# 📌 Agregar botón de actualización
-if st.button("🔄 Actualizar Lista"):
-    df = load_excel()
-    df_no_encontrados = df[df["TITULO"] == "Álbum no encontrado"]
-    st.success("✅ Lista actualizada correctamente.")
-
-# 📌 Mostrar álbumes no encontrados si existen
-if not df_no_encontrados.empty:  
+# 📌 Mostrar el selectbox con los álbumes no encontrados
+if not df_no_encontrados.empty:
     opciones = df_no_encontrados.apply(lambda row: f"{row['AUTOR']} - {row['NOMBRE CD']}", axis=1).tolist()
     seleccion = st.selectbox(f"Selecciona un álbum para buscar en Spotify ({len(opciones)} disponibles):", opciones, key="album_selector")
 
-    if seleccion:
-        seleccion_index = df_no_encontrados[
-            df_no_encontrados.apply(lambda row: f"{row['AUTOR']} - {row['NOMBRE CD']}", axis=1) == seleccion
-        ].index[0]
+    # 📌 Obtener índice del álbum seleccionado
+    seleccion_index = df_no_encontrados[
+        df_no_encontrados.apply(lambda row: f"{row['AUTOR']} - {row['NOMBRE CD']}", axis=1) == seleccion
+    ].index[0]
 
-        autor_original = df.loc[seleccion_index, "AUTOR"]
-        nombre_cd_original = df.loc[seleccion_index, "NOMBRE CD"]
-        num_original = df.loc[seleccion_index, "Nº"]
+    num_original = df.loc[seleccion_index, "Nº"]
+    
+    # 📌 Campo de entrada para el ID del álbum (usando session_state)
+    album_id = st.text_input("🔗 Pega el ID del álbum desde Spotify:", value=st.session_state["album_id"], key="album_id_input")
 
-        album_id = st.text_input("🔗 Pega el ID del álbum desde Spotify:")
+    # 📌 Guardar el valor en session_state cada vez que cambia
+    if album_id != st.session_state["album_id"]:
+        st.session_state["album_id"] = album_id
 
-        if album_id and st.button("🔍 Buscar álbum en Spotify"):
-            token = get_spotify_token()
-            if token:
-                album_info = get_album_by_id(album_id, token)
+    # 📌 Botón para buscar y corregir el álbum en Spotify
+    if album_id and st.button("🔍 Buscar álbum en Spotify"):
+        token = get_spotify_token()
+        if token:
+            album_info = get_album_by_id(album_id, token)
 
-                if album_info:
-                    track_rows = [
-                        {
-                            "Nº": num_original,
-                            "AUTOR": album_info["artists"][0]["name"],  
-                            "NOMBRE CD": album_info["name"],  
-                            "TITULO": track["name"],  
-                            "URL": track["external_urls"]["spotify"],  
-                            "ID": album_info["id"],
-                            "IMAGEN_URL": album_info["images"][0]["url"] if album_info["images"] else None  
-                        }
-                        for track in album_info["tracks"]["items"]
-                    ]
+            if album_info:
+                track_rows = [
+                    {
+                        "Nº": num_original,
+                        "AUTOR": album_info["artist"],  
+                        "NOMBRE CD": album_info["name"],  
+                        "TITULO": track["title"],  
+                        "URL": track["url"],  
+                        "ID": album_info["id"],
+                        "IMAGEN_URL": album_info["image_url"]  
+                    }
+                    for track in album_info["tracks"]
+                ]
 
-                    if track_rows:
-                        df = pd.concat([df, pd.DataFrame(track_rows)], ignore_index=True)
-                        df.drop(index=seleccion_index, inplace=True)
-                        df.reset_index(drop=True, inplace=True)
+                if track_rows:
+                    df = pd.concat([df, pd.DataFrame(track_rows)], ignore_index=True)
+                    df.drop(index=seleccion_index, inplace=True)
+                    df.reset_index(drop=True, inplace=True)
 
-                        df.to_excel(EXCEL_FILE, index=False)
-                        st.cache_data.clear()  # 🔄 Limpiar caché tras modificar datos
-                        
-                        if os.path.exists(EXCEL_FILE):
-                            st.success("✅ El archivo Excel ha sido actualizado correctamente.")
-                        else:
-                            st.error("❌ Error: No se pudo guardar el archivo Excel.")
+                    df.to_excel(EXCEL_FILE, index=False)
 
-                        st.success(f"✅ Álbum '{album_info['name']}' corregido y guardado con sus canciones.")
+                    st.success(f"✅ Álbum '{album_info['name']}' corregido y guardado con sus canciones.")
 
-                        if album_info["images"]:
-                            st.image(album_info["images"][0]["url"], caption=f"📀 {album_info['name']} - {album_info['artists'][0]['name']}", use_container_width=True)
-                        st.markdown("### 🎼 Canciones del CD:")
-                        for idx, track in enumerate(album_info["tracks"]["items"], start=1):
-                            st.markdown(f"🎵 {idx}. **[{track['name']}]({track['external_urls']['spotify']})**")
-                    else:
-                        st.warning("⚠️ No se encontraron canciones para este álbum.")
+                    if album_info["image_url"]:
+                        st.image(album_info["image_url"], caption=f"📀 {album_info['name']} - {album_info['artist']}", use_container_width=True)
+
+                    st.markdown("### 🎼 Canciones del CD:")
+                    for idx, track in enumerate(album_info["tracks"], start=1):
+                        st.markdown(f"🎵 {idx}. **[{track['title']}]({track['url']})**")
+
+                    # 🔄 Limpiar el campo de ID después de guardar
+                    st.session_state["album_id"] = ""
