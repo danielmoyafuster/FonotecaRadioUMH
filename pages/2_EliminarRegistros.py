@@ -35,7 +35,7 @@ def cargar_datos():
 # Función para guardar datos en el archivo Excel
 def guardar_datos(df):
     df.to_excel(input_excel_path, index=False)
-
+    st.cache_data.clear()  # 🔄 Limpiar caché tras modificar datos
 # Cargar datos
 st.title("Fonoteca de Radio UMH - Borrar CD")
 datos = cargar_datos()

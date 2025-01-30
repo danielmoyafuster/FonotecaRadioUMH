@@ -116,7 +116,7 @@ if not df_no_encontrados.empty:
             # ✅ Guardar en Excel
             df.to_excel(EXCEL_FILE, index=False)
             st.success("✅ Canciones manuales guardadas correctamente.")
-
+            st.cache_data.clear()  # 🔄 Limpiar caché tras modificar datos
             # 🔄 **Actualizar la lista del ComboBox de forma segura**
             df_no_encontrados = df[df["TITULO"] == "Álbum no encontrado"]
             opciones = df_no_encontrados.apply(lambda row: f"{row['AUTOR']} - {row['NOMBRE CD']}", axis=1).tolist()

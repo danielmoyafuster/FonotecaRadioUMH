@@ -7,7 +7,7 @@ import os
 
 
 #
-# ACTUALIZACIÓN 30/01/25 19:24
+# ACTUALIZACIÓN 30/01/25 16:40
 #
 st.sidebar.title("Corregir Álbum (SPOTIFY)")
 st.sidebar.markdown(
@@ -125,7 +125,8 @@ if not df_no_encontrados.empty:
                         df.reset_index(drop=True, inplace=True)
 
                         df.to_excel(EXCEL_FILE, index=False)
-
+                        st.cache_data.clear()  # 🔄 Limpiar caché tras modificar datos
+                        
                         if os.path.exists(EXCEL_FILE):
                             st.success("✅ El archivo Excel ha sido actualizado correctamente.")
                         else:
