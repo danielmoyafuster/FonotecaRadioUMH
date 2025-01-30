@@ -7,7 +7,7 @@ import os
 
 
 #
-# ACTUALIZACIÓN 30/01/25 16:40
+# ACTUALIZACIÓN 30/01/25 19:24
 #
 st.sidebar.title("Corregir Álbum (SPOTIFY)")
 st.sidebar.markdown(
