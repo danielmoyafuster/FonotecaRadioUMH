@@ -6,6 +6,7 @@ import spotipy
 #
 # ACTUALIZACIÓN 30/01/25 09:00
 #
+st.sidebar.title("Añadir Álbum")
 st.sidebar.markdown(
     """
     <div style="text-align: center; margin-top: 20px; margin-bottom: 20px;">

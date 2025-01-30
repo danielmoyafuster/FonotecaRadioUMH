@@ -7,6 +7,7 @@ import os
 #
 
 # Encabezado en el menú lateral
+st.sidebar.title("Eliminar Registros")
 st.sidebar.markdown(
     """
     <div style="text-align: center; margin-top: 20px; margin-bottom: 20px;">

@@ -5,6 +5,7 @@ import os
 #
 # ACTUALIZACIÓN 30/01/25 06:00
 #
+st.sidebar.title("Consulta la FONOTECA")
 st.sidebar.markdown(
     """
     <div style="text-align: center; margin-top: 20px; margin-bottom: 20px;">
@@ -45,13 +46,13 @@ def cargar_datos():
     return pd.DataFrame(columns=["Nº", "AUTOR", "NOMBRE CD", "TITULO", "URL", "IMAGEN_URL", "ID"])
 
 # 📌 Título de la página
-st.title("🎵 Fonoteca de Radio UMH - Consulta")
+st.title("Fonoteca de Radio UMH - Consulta")
 
 # 📌 Cargar datos
 datos = cargar_datos()
 
 # 📌 Buscar registros
-st.write("### 🔍 Buscar registros:")
+# st.write("### 🔍 Buscar registros:")
 query = st.text_input("🔎 Busca por Nº, AUTOR, NOMBRE CD o TÍTULO:")
 
 if query:
@@ -74,8 +75,12 @@ if query:
 
         # 📌 Crear opciones para el `selectbox` con un índice correcto
         opciones = resultados_unicos.apply(lambda row: f"{row['Nº']} - {row['AUTOR']} - {row['NOMBRE CD']}", axis=1).tolist()
+        
+        # 📌 Contar el número de elementos en la lista
+        num_elementos = len(opciones)
 
-        seleccion = st.selectbox("🎶 Selecciona un CD para ver detalles:", opciones)
+        # 📌 Mostrar el selectbox con la cantidad de elementos
+        seleccion = st.selectbox(f"🎶 Selecciona un CD para ver detalles ({num_elementos} disponibles):", opciones)
 
         # 📌 Obtener datos del CD seleccionado
         num_seleccionado = seleccion.split(" - ")[0]  # Extraer el Nº del CD seleccionado

@@ -7,6 +7,7 @@ import pyperclip  # 📋 Para copiar al portapapeles
 #
 # ACTUALIZACIÓN 30/01/25 06:00
 #
+st.sidebar.title("Corregir Álbum (SPOTIFY)")
 st.sidebar.markdown(
     """
     <div style="text-align: center; margin-top: 20px; margin-bottom: 20px;">
@@ -32,7 +33,6 @@ CLIENT_SECRET = "62f90ff98a2d4602968a488129aeae31"
 # 📌 Función para copiar texto al portapapeles (sin notificar al usuario)
 def copiar_al_portapapeles(texto):
     pyperclip.copy(texto)
-
 
 
 # 📌 Nombre del archivo Excel
@@ -90,20 +90,18 @@ df = load_excel()
 df_no_encontrados = df[df["TITULO"] == "Álbum no encontrado"]
 
 if not df_no_encontrados.empty:  
-    st.title("🎵 Corrección de Álbumes No Encontrados - Spotify")
+    st.title("Corrección de Álbumes No Encontrados - Spotify")
 
-    st.markdown("### 🎧 CD's no encontrados en SPOTIFY")
-    
+    # 📌 Crear opciones para el `selectbox` con el número de elementos
     opciones = df_no_encontrados.apply(lambda row: f"{row['AUTOR']} - {row['NOMBRE CD']}", axis=1).tolist()
-    
-    col1, col2 = st.columns([4, 1])  
+    num_elementos = len(opciones)  # 📌 Contar el número de álbumes en la lista
 
-    with col1:
-        seleccion = st.selectbox("Selecciona un álbum para buscar en Spotify:", opciones, key="album_selector")
+    # 📌 Mostrar el selectbox con la cantidad de álbumes disponibles
+    seleccion = st.selectbox(f"🎧 Selecciona un álbum para buscar en Spotify ({num_elementos} disponibles):", opciones, key="album_selector")
 
-    with col2:
-        if st.button("📋 Copiar al portapapeles"):
-            copiar_al_portapapeles(seleccion)  # Copia sin notificación
+    # 📌 Botón para copiar el álbum seleccionado al portapapeles
+    if st.button("📋 Copiar al portapapeles"):
+        copiar_al_portapapeles(seleccion)
 
     if seleccion:
         # 🔹 Obtener el índice exacto de la fila seleccionada

@@ -7,6 +7,7 @@ import pyperclip  # 📋 Para copiar al portapapeles
 #
 # ACTUALIZACIÓN 30/01/25 09:00
 #
+st.sidebar.title("Corregir Álbum (Manual)")
 st.sidebar.markdown(
     """
     <div style="text-align: center; margin-top: 20px; margin-bottom: 20px;">
