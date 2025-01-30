@@ -2,6 +2,10 @@ import pandas as pd
 import streamlit as st
 import os
 
+#
+# ACTUALIZACIÓN 30/01/25 06:00
+#
+
 # Encabezado en el menú lateral
 st.sidebar.markdown(
     """
