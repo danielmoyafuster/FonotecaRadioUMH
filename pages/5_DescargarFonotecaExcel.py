@@ -3,6 +3,24 @@ import streamlit as st
 #
 # ACTUALIZACIÓN 30/01/25 06:00
 #
+#
+# ACTUALIZACIÓN 30/01/25 06:00
+#
+st.sidebar.markdown(
+    """
+    <div style="text-align: center; margin-top: 20px; margin-bottom: 20px;">
+        <a href="https://radio.umh.es/" target="_blank">
+            <img src="https://radio.umh.es/files/2023/07/FOTO-PERFIL-RADIO.png" 
+                 alt="Radio UMH" 
+                 style="width: 150px; border-radius: 10px; margin-bottom: 10px;">
+        </a>
+        <p style="font-size: 16px; font-weight: bold; color: #333;">Gestión de la Fonoteca</p>
+        <hr style="border: none; border-top: 1px solid #ccc; margin: 10px 0;">
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
+
 
 # Título de la aplicación
 st.title("Descarga de Excel: FONOTECA_CD_UMH_SPOTIFY")

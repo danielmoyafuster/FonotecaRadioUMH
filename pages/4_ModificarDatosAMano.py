@@ -2,21 +2,36 @@ import pandas as pd
 import requests
 import base64
 import streamlit as st
-import pyperclip  # Para copiar al portapapeles
 import os
-
+import pyperclip  # 📋 Para copiar al portapapeles
 #
-# ACTUALIZACIÓN 30/01/25 06:00
+# ACTUALIZACIÓN 30/01/25 09:00
 #
+st.sidebar.markdown(
+    """
+    <div style="text-align: center; margin-top: 20px; margin-bottom: 20px;">
+        <a href="https://radio.umh.es/" target="_blank">
+            <img src="https://radio.umh.es/files/2023/07/FOTO-PERFIL-RADIO.png" 
+                 alt="Radio UMH" 
+                 style="width: 150px; border-radius: 10px; margin-bottom: 10px;">
+        </a>
+        <p style="font-size: 16px; font-weight: bold; color: #333;">Gestión de la Fonoteca</p>
+        <hr style="border: none; border-top: 1px solid #ccc; margin: 10px 0;">
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 
-# 📌 Función para copiar al portapapeles
+
+
+# 📌 Función para copiar texto al portapapeles (sin notificar al usuario)
 def copiar_al_portapapeles(texto):
     pyperclip.copy(texto)
 
 # 📌 Nombre del archivo Excel
 EXCEL_FILE = "FONOTECA_CD_UMH_SPOTIFY.xlsx"
 
-# 📌 Cargar el archivo Excel
+# 📌 Función para cargar el archivo Excel
 @st.cache_data
 def load_excel():
     try:
@@ -29,88 +44,91 @@ def load_excel():
 df = load_excel()
 
 # 📌 Filtrar álbumes no encontrados
-df_no_encontrados = df[df["TITULO"].isin(["Álbum no encontrado", "Usando datos anteriores"])]
+df_no_encontrados = df[df["TITULO"] == "Álbum no encontrado"]
 
 if not df_no_encontrados.empty:  
-    st.title("🎵 Corrección de Álbumes No Encontrados")
-    
+    st.title("🎵 Corrección de Álbumes No Encontrados - Manual")
+
     st.markdown("### 🎧 CD's no encontrados en SPOTIFY")
     
     opciones = df_no_encontrados.apply(lambda row: f"{row['AUTOR']} - {row['NOMBRE CD']}", axis=1).tolist()
     
     col1, col2 = st.columns([4, 1])  
-    
+
     with col1:
-        seleccion = st.selectbox("Selecciona un álbum para corregir:", opciones, key="album_selector")
+        seleccion = st.selectbox("Selecciona un álbum para modificar manualmente:", opciones, key="album_selector")
 
     with col2:
         if st.button("📋 Copiar al portapapeles"):
-            copiar_al_portapapeles(seleccion)
+            copiar_al_portapapeles(seleccion)  # Copia sin notificación
 
+    # 📌 Proceso de corrección manual
     if seleccion:
-        seleccion_index = df_no_encontrados[df_no_encontrados.apply(lambda row: f"{row['AUTOR']} - {row['NOMBRE CD']}", axis=1) == seleccion].index[0]
+        # 🔹 Obtener el índice exacto de la fila seleccionada
+        seleccion_index = df_no_encontrados[
+            df_no_encontrados.apply(lambda row: f"{row['AUTOR']} - {row['NOMBRE CD']}", axis=1) == seleccion
+        ].index[0]
+
         autor_original = df.loc[seleccion_index, "AUTOR"]
         nombre_cd_original = df.loc[seleccion_index, "NOMBRE CD"]
         num_original = df.loc[seleccion_index, "Nº"]
 
-        # 🔹 Inicializar lista de canciones en el estado de sesión solo si no está ya creada
-        if "track_list" not in st.session_state:
-            st.session_state.track_list = []
-
+        # 📌 Formulario para agregar canciones manualmente
         st.markdown("## 🎵 Añadir canciones manualmente")
 
-        # 1️⃣ Nombre de la imagen del CD (en ./imagenes_cd)
-        image_name = st.text_input("📀 Nombre del archivo de la imagen (Ej: portada.jpg):", key="image_input")
+        # 1️⃣ Campo para subir la imagen del CD
+        uploaded_file = st.file_uploader("📀 Sube la imagen del CD (opcional)", type=["jpg", "png", "jpeg"])
 
-        # 2️⃣ Título de la canción
-        track_name = st.text_input("🎵 Título de la canción:", key="track_input")
+        # 2️⃣ Campo para ingresar el título de la canción
+        track_name = st.text_input("🎶 Título de la canción:")
 
-        # 3️⃣ Botón para añadir la canción manualmente (Evita registros vacíos)
-        if st.button("➕ Añadir canción manual"):
-            if track_name.strip():  # 📌 Verifica que no esté vacío
-                # 📌 Verificar si la imagen existe antes de guardarla
-                image_path = f"./imagenes_cd/{image_name}" if image_name else None
-                if image_path and not os.path.exists(image_path):
-                    st.warning(f"⚠️ La imagen '{image_name}' no existe en ./imagenes_cd/")
-                    image_path = None  # No guardar la ruta si la imagen no existe
-
+        # 3️⃣ Botón para añadir la canción manualmente
+        if st.button("➕ Añadir canción"):
+            if track_name:
                 new_track = {
                     "Nº": num_original,
                     "AUTOR": autor_original,  
                     "NOMBRE CD": nombre_cd_original,  
-                    "TITULO": track_name.strip(),  
+                    "TITULO": track_name,  
                     "URL": None,  
                     "ID": None,
-                    "IMAGEN_URL": image_path  
+                    "IMAGEN_URL": f"./imagenes_cd/{uploaded_file.name}" if uploaded_file else None  
                 }
+                if "track_list" not in st.session_state:
+                    st.session_state.track_list = []
                 st.session_state.track_list.append(new_track)
                 st.rerun()  # 🔄 Recargar la interfaz para actualizar la lista
-            else:
-                st.warning("⚠️ No puedes agregar una canción sin título.")
 
-        # 🔹 Mostrar la lista de canciones añadidas en tiempo real con un diseño más claro
-        if st.session_state.track_list:
+        # 📌 Mostrar lista de canciones añadidas en tiempo real
+        if "track_list" in st.session_state and st.session_state.track_list:
             st.markdown("### 📋 Canciones añadidas manualmente:")
             for idx, track in enumerate(st.session_state.track_list, start=1):
-                st.write(f"🎶 **{idx}.** {track['TITULO']}")
+                st.write(f"🎶 {idx}. {track['TITULO']}")
 
-        # 🔹 Botón para guardar todas las canciones en la Excel
-        if st.session_state.track_list:
-            if st.button("💾 Guardar canciones manuales"):
-                # 📌 Filtrar registros incorrectos antes de guardar
-                canciones_validas = [track for track in st.session_state.track_list]
+        # 📌 Botón para guardar las canciones manuales en la Excel
+        if "track_list" in st.session_state and st.session_state.track_list and st.button("💾 Guardar canciones manuales"):
+            df = pd.concat([df, pd.DataFrame(st.session_state.track_list)], ignore_index=True)
 
-                if canciones_validas:
-                    df = pd.concat([df, pd.DataFrame(canciones_validas)], ignore_index=True)
+            # ✅ Eliminar el registro con "Álbum no encontrado"
+            df = df.drop(index=seleccion_index).reset_index(drop=True)
 
-                    # ✅ Eliminar todas las filas con "Álbum no encontrado" o "Usando datos anteriores"
-                    df = df[~df["TITULO"].isin(["Álbum no encontrado", "Usando datos anteriores"])].reset_index(drop=True)
+            # ✅ Guardar en Excel
+            df.to_excel(EXCEL_FILE, index=False)
+            st.success("✅ Canciones manuales guardadas correctamente.")
 
-                    df.to_excel(EXCEL_FILE, index=False)
-                    st.success("✅ Canciones manuales guardadas correctamente y álbum corregido.")
+            # 🔄 **Actualizar la lista del ComboBox de forma segura**
+            df_no_encontrados = df[df["TITULO"] == "Álbum no encontrado"]
+            opciones = df_no_encontrados.apply(lambda row: f"{row['AUTOR']} - {row['NOMBRE CD']}", axis=1).tolist()
 
-                    # 🔄 Limpiar la lista después de guardar y actualizar la interfaz
-                    st.session_state.track_list = []
-                    st.rerun()
-                else:
-                    st.warning("⚠️ No hay canciones válidas para guardar.")
+            # **Eliminar la clave antes de modificar `session_state` para evitar errores**
+            st.session_state.pop("album_selector", None)
+
+            if opciones:
+                # ✅ Actualizar el selectbox con los álbumes restantes
+                st.session_state.album_selector = opciones[0]
+            else:
+                # ✅ Vaciar el selectbox si no hay más álbumes por corregir
+                st.session_state.album_selector = None  
+
+            # 🔄 Recargar la interfaz para actualizar la lista
+            st.rerun()
