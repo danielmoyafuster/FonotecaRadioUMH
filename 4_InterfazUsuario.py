@@ -20,13 +20,28 @@ st.sidebar.markdown(
     unsafe_allow_html=True,
 )
 
+
+# 📌 Función para limpiar y normalizar el texto (evita problemas con espacios invisibles)
+def limpiar_texto(texto):
+    if pd.isna(texto):  # Si es NaN, devolver una cadena vacía
+        return ""
+    return " ".join(texto.split())  # Elimina espacios extra y caracteres invisibles
+
 # 📌 Ruta del archivo Excel
-input_excel_path = "FONOTECA_CD_UMH_SPOTIFY.xlsx"
+EXCEL_FILE = "FONOTECA_CD_UMH_SPOTIFY.xlsx"
 
 # 📌 Función para cargar los datos existentes
+@st.cache_data
 def cargar_datos():
-    if os.path.exists(input_excel_path):
-        return pd.read_excel(input_excel_path)
+    if os.path.exists(EXCEL_FILE):
+        df = pd.read_excel(EXCEL_FILE)
+
+        # 📌 Aplicar la limpieza a las columnas relevantes
+        df["AUTOR"] = df["AUTOR"].astype(str).apply(limpiar_texto)
+        df["NOMBRE CD"] = df["NOMBRE CD"].astype(str).apply(limpiar_texto)
+        df["TITULO"] = df["TITULO"].astype(str).apply(limpiar_texto)
+        return df
+
     return pd.DataFrame(columns=["Nº", "AUTOR", "NOMBRE CD", "TITULO", "URL", "IMAGEN_URL", "ID"])
 
 # 📌 Título de la página
@@ -40,7 +55,9 @@ st.write("### 🔍 Buscar registros:")
 query = st.text_input("🔎 Busca por Nº, AUTOR, NOMBRE CD o TÍTULO:")
 
 if query:
-    # 📌 Filtrar registros por la consulta
+    query = limpiar_texto(query)  # 📌 Limpiar la consulta del usuario
+
+    # 📌 Filtrar registros normalizando el texto
     resultados = datos[
         datos["Nº"].astype(str).str.contains(query, case=False, na=False)
         | datos["AUTOR"].str.contains(query, case=False, na=False)
