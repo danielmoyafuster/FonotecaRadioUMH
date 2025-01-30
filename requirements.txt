@@ -2,3 +2,4 @@ Openpyxl
 pandas==2.2.3
 spotipy==2.25.0
 streamlit==1.41.1
+pyperclip
