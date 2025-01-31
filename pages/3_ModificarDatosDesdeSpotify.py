@@ -91,7 +91,7 @@ if st.button("🔄 Actualizar Lista"):
     df = load_excel()  # Recargar datos
     df_no_encontrados = df[df["TITULO"] == "Álbum no encontrado"]
     st.session_state["album_id"] = ""  # 🔹 Limpiar el cuadro de texto
-    st.experimental_rerun()
+    st.rerun()
 
 # 📌 Cargar el archivo en cada ejecución
 df = load_excel()
