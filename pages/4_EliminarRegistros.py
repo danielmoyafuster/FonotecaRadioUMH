@@ -18,7 +18,7 @@ st.sidebar.markdown(
 )
 
 # Ruta de la base de datos
-db_path = "FonotecaRadioUMH.db"
+db_path = "./db/FonotecaRadioUMH.db"
 
 # Conectar a la base de datos
 conn = sqlite3.connect(db_path)

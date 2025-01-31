@@ -26,7 +26,7 @@ IMAGENES_DIR = "./imagenes_cd"
 os.makedirs(IMAGENES_DIR, exist_ok=True)
 
 # Conectar a la base de datos SQLite
-db_path = "FonotecaRadioUMH.db"
+db_path = "./db/FonotecaRadioUMH.db"
 conn = sqlite3.connect(db_path)
 
 # Obtener los CDs donde TÍTULO = "Álbum no encontrado"

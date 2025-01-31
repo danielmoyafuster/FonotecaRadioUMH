@@ -6,7 +6,7 @@ import pandas as pd
 st.title("Editar Autor y Nombre del CD en la Fonoteca")
 
 # Conectar a la base de datos SQLite
-db_path = "FonotecaRadioUMH.db"
+db_path = "./db/FonotecaRadioUMH.db"
 
 # 🔍 Búsqueda por AUTOR o NOMBRE CD
 st.subheader("Buscar CD para editar")

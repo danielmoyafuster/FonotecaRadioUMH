@@ -31,7 +31,7 @@ sp = spotipy.Spotify(auth_manager=SpotifyClientCredentials(client_id=SPOTIFY_CLI
 st.title("Dar de Alta un Nuevo CD en la Fonoteca 13:02")
 
 # Ruta de la base de datos
-db_path = "FonotecaRadioUMH.db"
+db_path = "./db/FonotecaRadioUMH.db"
 
 # Formulario para ingresar los datos básicos del CD
 st.subheader("Datos del Nuevo CD")

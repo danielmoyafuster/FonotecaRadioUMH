@@ -23,7 +23,7 @@ st.sidebar.markdown(
 st.title("Fonoteca Radio UMH")
 
 # Conectar a la base de datos SQLite
-db_path = "FonotecaRadioUMH.db"
+db_path = "./db/FonotecaRadioUMH.db"
 conn = sqlite3.connect(db_path)
 
 # Campos permitidos para la búsqueda

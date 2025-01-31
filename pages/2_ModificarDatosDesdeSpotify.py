@@ -37,7 +37,7 @@ if "spotify_id_input" not in st.session_state:
 
 # Función para cargar los álbumes no encontrados
 def cargar_albumes_no_encontrados():
-    conn = sqlite3.connect("FonotecaRadioUMH.db")
+    conn = sqlite3.connect("./db/FonotecaRadioUMH.db")
     query = """
         SELECT DISTINCT autor, nombre_cd FROM fonoteca
         WHERE titulo = 'Álbum no encontrado' 
@@ -46,8 +46,8 @@ def cargar_albumes_no_encontrados():
         ORDER BY autor, nombre_cd
     """
     albumes_df = pd.read_sql_query(query, conn)
-    conn.close()
-    
+    conn.close()  # ❌ Eliminamos `conn.commit()` aquí, ya que no es necesario
+
     # Eliminar valores "nan"
     albumes_df = albumes_df.dropna()
     
@@ -101,11 +101,11 @@ if num_albumes > 0:
                     "imagen_url": album_cover
                 })
 
-            # Convertir a DataFrame
-            new_tracks_df = pd.DataFrame(track_list)
+            # Convertir a DataFrame asegurando tipos de datos correctos
+            new_tracks_df = pd.DataFrame(track_list).astype({"numero": int})
 
             # Conectar a SQLite para actualizar la base de datos
-            conn = sqlite3.connect("FonotecaRadioUMH.db")
+            conn = sqlite3.connect("./db/FonotecaRadioUMH.db")
             cursor = conn.cursor()
 
             # Eliminar el registro antiguo con "Álbum no encontrado"
@@ -115,7 +115,7 @@ if num_albumes > 0:
             # Insertar los nuevos datos en la base de datos
             new_tracks_df.to_sql("fonoteca", conn, if_exists="append", index=False)
 
-            # Confirmar cambios y cerrar conexión
+            # ✅ Confirmar cambios ANTES de cerrar la conexión
             conn.commit()
             conn.close()
 
@@ -124,8 +124,8 @@ if num_albumes > 0:
             st.image(album_cover, caption="Nueva carátula del álbum", width=300)
 
             # 🔹 Vaciar el cuadro de ID y recargar lista
-            # st.session_state["spotify_id_input"] = ""
-            # st.rerun()
+            st.session_state["spotify_id_input"] = ""  # ✅ Descomentado para limpiar el input
+            st.rerun()
 
 else:
     st.write("✅ No hay álbumes sin encontrar en Spotify.")

@@ -20,7 +20,7 @@ st.sidebar.markdown(
 )
 
 # Ruta de la base de datos
-db_path = "FonotecaRadioUMH.db"
+db_path = "./db/FonotecaRadioUMH.db"
 
 # Configurar título de la app
 st.title("📤 Exportar Base de Datos a Excel")
