@@ -4,7 +4,7 @@ import pandas as pd
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
 
-# Configuración de la barra lateral
+# Configurar la barra lateral
 st.sidebar.title("Modificar Datos (SPOTIFY)")
 st.sidebar.markdown(
     """
@@ -37,7 +37,7 @@ if "spotify_id_input" not in st.session_state:
 
 # Función para cargar los álbumes no encontrados
 def cargar_albumes_no_encontrados():
-    conn = sqlite3.connect("./db/FonotecaRadioUMH.db")
+    conn = sqlite3.connect("FonotecaRadioUMH.db")
     query = """
         SELECT DISTINCT autor, nombre_cd FROM fonoteca
         WHERE titulo = 'Álbum no encontrado' 
@@ -46,7 +46,7 @@ def cargar_albumes_no_encontrados():
         ORDER BY autor, nombre_cd
     """
     albumes_df = pd.read_sql_query(query, conn)
-    conn.close()  # ❌ Eliminamos `conn.commit()` aquí, ya que no es necesario
+    conn.close()
 
     # Eliminar valores "nan"
     albumes_df = albumes_df.dropna()
@@ -76,12 +76,18 @@ if num_albumes > 0:
     album_seleccionado = album_dict[album_seleccionado_label]["nombre_cd"]
     autor_seleccionado = album_dict[album_seleccionado_label]["autor"]
 
-    # Entrada de ID de Spotify
-    spotify_album_id = st.text_input("🔗 Pega aquí la ID de Spotify del álbum seleccionado:", key="spotify_id_input")
+    # Entrada de ID de Spotify (se usa `value=` en lugar de `key=`)
+    spotify_album_id = st.text_input(
+        "🔗 Pega aquí la ID de Spotify del álbum seleccionado:",
+        value=st.session_state.get("spotify_id_input", "")
+    )
 
     # Botón para buscar en Spotify y actualizar la base de datos
     if st.button("📥 Obtener datos del álbum y actualizar"):
         if spotify_album_id:
+            # Guardar la ID en session_state para mantenerla actualizada
+            st.session_state["spotify_id_input"] = spotify_album_id
+
             # Obtener datos del álbum desde Spotify
             album_data = sp.album(f"spotify:album:{spotify_album_id}")
 
@@ -105,7 +111,7 @@ if num_albumes > 0:
             new_tracks_df = pd.DataFrame(track_list).astype({"numero": int})
 
             # Conectar a SQLite para actualizar la base de datos
-            conn = sqlite3.connect("./db/FonotecaRadioUMH.db")
+            conn = sqlite3.connect("FonotecaRadioUMH.db")
             cursor = conn.cursor()
 
             # Eliminar el registro antiguo con "Álbum no encontrado"
@@ -123,8 +129,8 @@ if num_albumes > 0:
             st.success(f"✅ El álbum '{album_seleccionado}' de {autor_seleccionado} ha sido actualizado con datos de Spotify.")
             st.image(album_cover, caption="Nueva carátula del álbum", width=300)
 
-            # 🔹 Vaciar el cuadro de ID y recargar lista
-            st.session_state["spotify_id_input"] = ""  # ✅ Descomentado para limpiar el input
+            # 🔹 Vaciar la ID y recargar lista
+            st.session_state["spotify_id_input"] = ""  # ✅ Ahora se borra correctamente
             st.rerun()
 
 else:
