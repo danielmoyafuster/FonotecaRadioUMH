@@ -37,7 +37,7 @@ if "spotify_id_input" not in st.session_state:
 
 # Función para cargar los álbumes no encontrados
 def cargar_albumes_no_encontrados():
-    conn = sqlite3.connect("FonotecaRadioUMH.db")
+    conn = sqlite3.connect("./db/FonotecaRadioUMH.db")
     query = """
         SELECT DISTINCT autor, nombre_cd FROM fonoteca
         WHERE titulo = 'Álbum no encontrado' 
@@ -111,7 +111,7 @@ if num_albumes > 0:
             new_tracks_df = pd.DataFrame(track_list).astype({"numero": int})
 
             # Conectar a SQLite para actualizar la base de datos
-            conn = sqlite3.connect("FonotecaRadioUMH.db")
+            conn = sqlite3.connect("./db/FonotecaRadioUMH.db")
             cursor = conn.cursor()
 
             # Eliminar el registro antiguo con "Álbum no encontrado"
