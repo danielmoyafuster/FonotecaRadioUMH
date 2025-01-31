@@ -31,6 +31,10 @@ sp = spotipy.Spotify(auth_manager=SpotifyClientCredentials(client_id=SPOTIFY_CLI
 # Configurar título de la app
 st.title("Actualizar Álbumes No Encontrados en Spotify")
 
+# 🔹 Inicializar `st.session_state` para evitar errores
+if "spotify_id_input" not in st.session_state:
+    st.session_state["spotify_id_input"] = ""
+
 # Función para cargar los álbumes no encontrados
 def cargar_albumes_no_encontrados():
     conn = sqlite3.connect("FonotecaRadioUMH.db")
@@ -49,8 +53,9 @@ def cargar_albumes_no_encontrados():
     
     return albumes_df
 
-# Botón para recargar la lista manualmente
+# 🔄 Botón para recargar la lista de álbumes y vaciar la ID
 if st.button("🔄 Recargar Lista de Álbumes"):
+    st.session_state["spotify_id_input"] = ""  # Vaciar el cuadro de ID
     st.rerun()
 
 # Cargar álbumes al inicio
@@ -64,14 +69,14 @@ if num_albumes > 0:
     albumes_df["combo_label"] = albumes_df["autor"] + " - " + albumes_df["nombre_cd"]
     album_dict = albumes_df.set_index("combo_label").to_dict("index")
 
-    # Guardamos la selección en una variable de sesión para que se recargue después
+    # Selección del álbum en la lista desplegable
     album_seleccionado_label = st.selectbox(f"Álbumes no encontrados en Spotify ({num_albumes}):", album_dict.keys())
 
     # Obtener datos del álbum seleccionado
     album_seleccionado = album_dict[album_seleccionado_label]["nombre_cd"]
     autor_seleccionado = album_dict[album_seleccionado_label]["autor"]
 
-    # 🔹 Entrada de ID de Spotify (con key para evitar errores)
+    # Entrada de ID de Spotify
     spotify_album_id = st.text_input("🔗 Pega aquí la ID de Spotify del álbum seleccionado:", key="spotify_id_input")
 
     # Botón para buscar en Spotify y actualizar la base de datos
@@ -118,8 +123,9 @@ if num_albumes > 0:
             st.success(f"✅ El álbum '{album_seleccionado}' de {autor_seleccionado} ha sido actualizado con datos de Spotify.")
             st.image(album_cover, caption="Nueva carátula del álbum", width=300)
 
-            # 🔹 Recargar la lista de álbumes después de actualizar (esto también limpia el input)
-            st.rerun()
+            # 🔹 Vaciar el cuadro de ID y recargar lista
+            # st.session_state["spotify_id_input"] = ""
+            # st.rerun()
 
 else:
     st.write("✅ No hay álbumes sin encontrar en Spotify.")
