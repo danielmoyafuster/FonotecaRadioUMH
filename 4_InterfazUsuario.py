@@ -1,6 +1,8 @@
 import streamlit as st
 import sqlite3
 import pandas as pd
+
+# Configurar la barra lateral
 st.sidebar.title("Consultar la Fonoteca")
 st.sidebar.markdown(
     """
@@ -21,7 +23,7 @@ st.sidebar.markdown(
 st.title("Fonoteca Radio UMH")
 
 # Conectar a la base de datos SQLite
-db_path = "FonotecaRadioUMH.db"  # La base de datos debe estar en el mismo directorio
+db_path = "FonotecaRadioUMH.db"
 conn = sqlite3.connect(db_path)
 
 # Campos permitidos para la búsqueda
@@ -45,6 +47,9 @@ if busqueda:
     # Convertir los resultados a lista
     cds_encontrados = cds_df["nombre_cd"].tolist()
 
+    # Contador de resultados
+    num_cds_encontrados = len(cds_encontrados)
+
     # Mostrar mensaje si no se encuentra ningún CD
     if not cds_encontrados:
         st.error(f"⚠️ No se encontraron resultados para '{busqueda}' en el campo '{campo_busqueda}'.")
@@ -52,7 +57,7 @@ if busqueda:
 
 # Mostrar el combo si hay CDs encontrados
 if cds_encontrados:
-    cd_seleccionado = st.selectbox("Selecciona un CD:", cds_encontrados)
+    cd_seleccionado = st.selectbox(f"Selecciona un CD ({num_cds_encontrados} encontrados):", cds_encontrados)
 
     # Obtener la carátula del CD seleccionado
     imagen_url = cds_df.loc[cds_df["nombre_cd"] == cd_seleccionado, "imagen_url"].values[0]
@@ -61,15 +66,26 @@ if cds_encontrados:
     if pd.notna(imagen_url) and imagen_url != "No disponible":
         st.image(imagen_url, caption=f"Carátula de {cd_seleccionado}", width=200)
 
-    # Si el usuario selecciona un CD, mostrar las canciones de ese CD
+    # Si el usuario selecciona un CD, mostrar las canciones
     if cd_seleccionado:
-        query_canciones = """
-            SELECT numero, autor, nombre_cd, titulo, url
-            FROM fonoteca
-            WHERE nombre_cd = ?
-            ORDER BY numero
-        """
-        canciones_df = pd.read_sql_query(query_canciones, conn, params=(cd_seleccionado,))
+        if campo_busqueda == "titulo":
+            # Si la búsqueda fue por título, mostrar solo la canción buscada
+            query_canciones = """
+                SELECT numero, autor, nombre_cd, titulo, url
+                FROM fonoteca
+                WHERE nombre_cd = ? AND titulo LIKE ?
+                ORDER BY CAST(numero AS INTEGER) ASC
+            """
+            canciones_df = pd.read_sql_query(query_canciones, conn, params=(cd_seleccionado, f"%{busqueda}%"))
+        else:
+            # Mostrar todas las canciones del CD ordenadas por número
+            query_canciones = """
+                SELECT numero, autor, nombre_cd, titulo, url
+                FROM fonoteca
+                WHERE nombre_cd = ?
+                ORDER BY CAST(numero AS INTEGER) ASC
+            """
+            canciones_df = pd.read_sql_query(query_canciones, conn, params=(cd_seleccionado,))
 
         # Convertir los títulos de las canciones en enlaces a Spotify
         def make_clickable(val, url):
