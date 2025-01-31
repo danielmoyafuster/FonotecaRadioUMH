@@ -130,8 +130,8 @@ if num_albumes > 0:
             st.image(album_cover, caption="Nueva carátula del álbum", width=300)
 
             # 🔹 Vaciar la ID y recargar lista
-            st.session_state["spotify_id_input"] = ""  # ✅ Ahora se borra correctamente
-            st.rerun()
+            # st.session_state["spotify_id_input"] = ""  # ✅ Ahora se borra correctamente
+            # st.rerun()
 
 else:
     st.write("✅ No hay álbumes sin encontrar en Spotify.")
