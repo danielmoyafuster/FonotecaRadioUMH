@@ -1,7 +1,7 @@
 import streamlit as st
 import sqlite3
 import pandas as pd
-st.sidebar.title("Consultar la Fonoteca)
+st.sidebar.title("Consultar la Fonoteca")
 st.sidebar.markdown(
     """
     <div style="text-align: center; margin-top: 20px; margin-bottom: 20px;">
