@@ -71,11 +71,7 @@ if num_albumes > 0:
     album_seleccionado = album_dict[album_seleccionado_label]["nombre_cd"]
     autor_seleccionado = album_dict[album_seleccionado_label]["autor"]
 
-    # 🔹 Inicializar `st.session_state` para evitar errores
-    if "spotify_id_input" not in st.session_state:
-        st.session_state["spotify_id_input"] = ""
-
-    # Entrada de ID de Spotify (se reiniciará tras actualización)
+    # 🔹 Entrada de ID de Spotify (con key para evitar errores)
     spotify_album_id = st.text_input("🔗 Pega aquí la ID de Spotify del álbum seleccionado:", key="spotify_id_input")
 
     # Botón para buscar en Spotify y actualizar la base de datos
@@ -118,14 +114,11 @@ if num_albumes > 0:
             conn.commit()
             conn.close()
 
-            # 🔹 Vaciar el cuadro de texto de la ID de Spotify
-            st.session_state["spotify_id_input"] = ""
-
             # 🔹 Mensaje de éxito y mostrar la carátula
             st.success(f"✅ El álbum '{album_seleccionado}' de {autor_seleccionado} ha sido actualizado con datos de Spotify.")
             st.image(album_cover, caption="Nueva carátula del álbum", width=300)
 
-            # 🔹 Recargar la lista de álbumes después de actualizar
+            # 🔹 Recargar la lista de álbumes después de actualizar (esto también limpia el input)
             st.rerun()
 
 else:
