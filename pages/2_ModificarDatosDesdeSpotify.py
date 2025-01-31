@@ -4,6 +4,7 @@ import pandas as pd
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
 
+# Configuración de la barra lateral
 st.sidebar.title("Modificar Datos (SPOTIFY)")
 st.sidebar.markdown(
     """
@@ -23,10 +24,6 @@ st.sidebar.markdown(
 # Configurar credenciales de Spotify
 SPOTIFY_CLIENT_ID = "f539334f19094e47ae8df45cc373cce9"
 SPOTIFY_CLIENT_SECRET = "62f90ff98a2d4602968a488129aeae31"
-#
-# ------------------------------------------------------------------------------------------
-#
-
 
 sp = spotipy.Spotify(auth_manager=SpotifyClientCredentials(client_id=SPOTIFY_CLIENT_ID,
                                                            client_secret=SPOTIFY_CLIENT_SECRET))
@@ -34,22 +31,26 @@ sp = spotipy.Spotify(auth_manager=SpotifyClientCredentials(client_id=SPOTIFY_CLI
 # Configurar título de la app
 st.title("Actualizar Álbumes No Encontrados en Spotify")
 
-# Conectar a la base de datos SQLite
-db_path = "FonotecaRadioUMH.db"  # La base de datos debe estar en el mismo directorio
-conn = sqlite3.connect(db_path)
+# Función para cargar los álbumes no encontrados
+def cargar_albumes_no_encontrados():
+    conn = sqlite3.connect("FonotecaRadioUMH.db")
+    query = """
+        SELECT DISTINCT autor, nombre_cd FROM fonoteca
+        WHERE titulo = 'Álbum no encontrado' 
+        AND nombre_cd IS NOT NULL 
+        AND TRIM(nombre_cd) != ''
+        ORDER BY autor, nombre_cd
+    """
+    albumes_df = pd.read_sql_query(query, conn)
+    conn.close()
+    
+    # Eliminar valores "nan"
+    albumes_df = albumes_df.dropna()
+    
+    return albumes_df
 
-# Obtener los CDs donde TÍTULO = "Álbum no encontrado"
-query_albumes_no_encontrados = """
-    SELECT DISTINCT autor, nombre_cd FROM fonoteca
-    WHERE titulo = 'Álbum no encontrado' 
-    AND nombre_cd IS NOT NULL 
-    AND TRIM(nombre_cd) != ''
-    ORDER BY autor, nombre_cd
-"""
-albumes_df = pd.read_sql_query(query_albumes_no_encontrados, conn)
-
-# Cerrar conexión con la base de datos
-conn.close()
+# Cargar álbumes al inicio
+albumes_df = cargar_albumes_no_encontrados()
 
 # Contar el número de álbumes encontrados
 num_albumes = len(albumes_df)
@@ -57,15 +58,17 @@ num_albumes = len(albumes_df)
 # Crear una lista de opciones en formato "AUTOR - NOMBRE CD"
 if num_albumes > 0:
     albumes_df["combo_label"] = albumes_df["autor"] + " - " + albumes_df["nombre_cd"]
-    album_dict = albumes_df.set_index("combo_label").to_dict("index")  # Diccionario para obtener detalles por selección
+    album_dict = albumes_df.set_index("combo_label").to_dict("index")
+
+    # Guardamos la selección en una variable de sesión para que se recargue después
     album_seleccionado_label = st.selectbox(f"Álbumes no encontrados en Spotify ({num_albumes}):", album_dict.keys())
 
     # Obtener datos del álbum seleccionado
     album_seleccionado = album_dict[album_seleccionado_label]["nombre_cd"]
     autor_seleccionado = album_dict[album_seleccionado_label]["autor"]
 
-    # Entrada para pegar la ID de Spotify
-    spotify_album_id = st.text_input("🔗 Pega aquí la ID de Spotify del álbum seleccionado:")
+    # Entrada de ID de Spotify (se reiniciará tras actualización)
+    spotify_album_id = st.text_input("🔗 Pega aquí la ID de Spotify del álbum seleccionado:", key="spotify_id_input")
 
     # Botón para buscar en Spotify y actualizar la base de datos
     if st.button("📥 Obtener datos del álbum y actualizar"):
@@ -93,7 +96,7 @@ if num_albumes > 0:
             new_tracks_df = pd.DataFrame(track_list)
 
             # Conectar a SQLite para actualizar la base de datos
-            conn = sqlite3.connect(db_path)
+            conn = sqlite3.connect("FonotecaRadioUMH.db")
             cursor = conn.cursor()
 
             # Eliminar el registro antiguo con "Álbum no encontrado"
@@ -107,12 +110,22 @@ if num_albumes > 0:
             conn.commit()
             conn.close()
 
+            # Vaciar el cuadro de texto de la ID de Spotify
+            st.session_state["spotify_id_input"] = ""
+
             # Mensaje de éxito
             st.success(f"✅ El álbum '{album_seleccionado}' de {autor_seleccionado} ha sido actualizado con datos de Spotify.")
             st.image(album_cover, caption="Nueva carátula del álbum", width=300)
 
+            # Recargar la lista de álbumes después de actualizar
+            st.rerun()
+
         else:
             st.warning("⚠️ Por favor, introduce una ID de Spotify válida.")
+
+    # Botón para recargar la lista de álbumes manualmente
+    if st.button("🔄 Recargar Lista"):
+        st.rerun()
 
 else:
     st.write("✅ No hay álbumes sin encontrar en Spotify.")
