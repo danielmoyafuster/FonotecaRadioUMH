@@ -49,6 +49,10 @@ def cargar_albumes_no_encontrados():
     
     return albumes_df
 
+# Botón para recargar la lista manualmente
+if st.button("🔄 Recargar Lista de Álbumes"):
+    st.rerun()
+
 # Cargar álbumes al inicio
 albumes_df = cargar_albumes_no_encontrados()
 
@@ -66,6 +70,10 @@ if num_albumes > 0:
     # Obtener datos del álbum seleccionado
     album_seleccionado = album_dict[album_seleccionado_label]["nombre_cd"]
     autor_seleccionado = album_dict[album_seleccionado_label]["autor"]
+
+    # 🔹 Inicializar `st.session_state` para evitar errores
+    if "spotify_id_input" not in st.session_state:
+        st.session_state["spotify_id_input"] = ""
 
     # Entrada de ID de Spotify (se reiniciará tras actualización)
     spotify_album_id = st.text_input("🔗 Pega aquí la ID de Spotify del álbum seleccionado:", key="spotify_id_input")
@@ -110,22 +118,15 @@ if num_albumes > 0:
             conn.commit()
             conn.close()
 
-            # Vaciar el cuadro de texto de la ID de Spotify
+            # 🔹 Vaciar el cuadro de texto de la ID de Spotify
             st.session_state["spotify_id_input"] = ""
 
-            # Mensaje de éxito
+            # 🔹 Mensaje de éxito y mostrar la carátula
             st.success(f"✅ El álbum '{album_seleccionado}' de {autor_seleccionado} ha sido actualizado con datos de Spotify.")
             st.image(album_cover, caption="Nueva carátula del álbum", width=300)
 
-            # Recargar la lista de álbumes después de actualizar
+            # 🔹 Recargar la lista de álbumes después de actualizar
             st.rerun()
-
-        else:
-            st.warning("⚠️ Por favor, introduce una ID de Spotify válida.")
-
-    # Botón para recargar la lista de álbumes manualmente
-    if st.button("🔄 Recargar Lista"):
-        st.rerun()
 
 else:
     st.write("✅ No hay álbumes sin encontrar en Spotify.")
