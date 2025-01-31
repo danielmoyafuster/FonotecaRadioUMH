@@ -1,12 +1,9 @@
+import pandas as pd
 import streamlit as st
-
-#
-# ACTUALIZACIÓN 30/01/25 06:00
-#
-#
-# ACTUALIZACIÓN 30/01/25 06:00
-#
-st.sidebar.title("Descargar Excel FONOTECA")
+import sqlite3
+import datetime
+import io  # Para manejar la descarga en memoria
+st.sidebar.title("Descargar Base de Datos (EXCEL)")
 st.sidebar.markdown(
     """
     <div style="text-align: center; margin-top: 20px; margin-bottom: 20px;">
@@ -22,25 +19,42 @@ st.sidebar.markdown(
     unsafe_allow_html=True,
 )
 
+# Ruta de la base de datos
+db_path = "FonotecaRadioUMH.db"
 
-# Título de la aplicación
-st.title("Descarga de Excel: FONOTECA_CD_UMH_SPOTIFY")
+# Configurar título de la app
+st.title("📤 Exportar Base de Datos a Excel")
 
-# Ruta del archivo Excel que se quiere ofrecer para descarga
-excel_file_path = "FONOTECA_CD_UMH_SPOTIFY.xlsx"
+# Botón de descarga
+if st.button("📥 Descargar Base de Datos en Excel"):
+    # Conectar a la base de datos y obtener la tabla completa
+    conn = sqlite3.connect(db_path)
+    query = "SELECT * FROM fonoteca"
+    df = pd.read_sql_query(query, conn)
+    conn.close()
 
-# Verificar si el archivo existe
-try:
-    with open(excel_file_path, "rb") as file:
-        # Leer el contenido del archivo
-        excel_data = file.read()
-    
-    # Mostrar un botón para descargar el archivo
-    st.download_button(
-        label="📥 Descargar Excel",
-        data=excel_data,
-        file_name="FONOTECA_CD_UMH_SPOTIFY.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    )
-except FileNotFoundError:
-    st.error(f"El archivo {excel_file_path} no se encontró. Asegúrate de que el archivo existe en la ruta especificada.")
+    # Verificar si la base de datos tiene registros
+    if df.empty:
+        st.warning("⚠️ No hay datos en la base de datos para exportar.")
+    else:
+        # Generar nombre del archivo con la fecha actual
+        fecha_actual = datetime.datetime.now().strftime("%Y%m%d")
+        nombre_archivo = f"FonotecaRadioUMH_{fecha_actual}.xlsx"
+
+        # Crear un buffer en memoria para guardar el archivo
+        output = io.BytesIO()
+
+        # Guardar DataFrame en un archivo Excel en memoria
+        with pd.ExcelWriter(output, engine="openpyxl") as writer:
+            df.to_excel(writer, sheet_name="Fonoteca", index=False)
+        output.seek(0)  # Volver al inicio del buffer
+
+        # Preparar la descarga
+        st.download_button(
+            label="⬇️ Descargar Archivo",
+            data=output,
+            file_name=nombre_archivo,
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+
+        st.success("✅ Exportación completada. Descarga el archivo con el botón de arriba.")

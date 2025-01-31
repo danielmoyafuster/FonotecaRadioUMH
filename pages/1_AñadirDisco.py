@@ -3,9 +3,7 @@ import streamlit as st
 import os
 from spotipy.oauth2 import SpotifyClientCredentials
 import spotipy
-#
-# ACTUALIZACIÓN 30/01/25 09:00
-#
+import sqlite3
 st.sidebar.title("Añadir Álbum")
 st.sidebar.markdown(
     """
@@ -23,130 +21,113 @@ st.sidebar.markdown(
 )
 
 # Configurar credenciales de Spotify
-CLIENT_ID = "f539334f19094e47ae8df45cc373cce9"
-CLIENT_SECRET = "62f90ff98a2d4602968a488129aeae31"
+SPOTIFY_CLIENT_ID = "f539334f19094e47ae8df45cc373cce9"
+SPOTIFY_CLIENT_SECRET = "62f90ff98a2d4602968a488129aeae31"
 
-sp = spotipy.Spotify(auth_manager=SpotifyClientCredentials(client_id=CLIENT_ID, client_secret=CLIENT_SECRET))
+sp = spotipy.Spotify(auth_manager=SpotifyClientCredentials(client_id=SPOTIFY_CLIENT_ID,
+                                                           client_secret=SPOTIFY_CLIENT_SECRET))
 
-# Ruta del archivo Excel
-input_excel_path = "FONOTECA_CD_UMH_SPOTIFY.xlsx"
+# Configurar título de la app
+st.title("Dar de Alta un Nuevo CD en la Fonoteca 13:02")
 
-# 📌 Función para cargar datos desde Excel
-@st.cache_data
-def cargar_datos():
-    if os.path.exists(input_excel_path):
-        return pd.read_excel(input_excel_path)
-    return pd.DataFrame(columns=["Nº", "AUTOR", "NOMBRE CD", "TITULO", "URL", "ID", "IMAGEN_URL"])
+# Ruta de la base de datos
+db_path = "FonotecaRadioUMH.db"
 
-# 📌 Función para guardar datos en la Excel
-def guardar_datos(df):
-    df.to_excel(input_excel_path, index=False)
-    st.cache_data.clear()  # 🔄 Limpiar caché tras modificar datos  
+# Formulario para ingresar los datos básicos del CD
+st.subheader("Datos del Nuevo CD")
+numero_cd = st.text_input("Número del CD:").strip()
+autor_cd = st.text_input("Autor del CD:").strip()
+nombre_cd = st.text_input("Nombre del CD:").strip()
 
-# 📌 Función para buscar canciones en Spotify
-def buscar_canciones(autor, nombre_cd):
-    resultados = sp.search(q=f"album:{nombre_cd} artist:{autor}", type="album", limit=1)
-    if resultados["albums"]["items"]:
-        album = resultados["albums"]["items"][0]
-        album_id = album["id"]
-        album_image_url = album["images"][0]["url"] if album["images"] else None  # URL de la imagen del álbum
-        album_tracks = sp.album_tracks(album_id)
-        canciones = [
-            {
-                "TITULO": track["name"],
-                "URL": track["external_urls"]["spotify"],
-                "ID": track["id"],
-                "IMAGEN_URL": album_image_url  # Agregar la URL de la imagen
-            }
-            for track in album_tracks["items"]
-        ]
-        return canciones, album_image_url  # Devolver también la URL de la imagen
-    return [], None
+# Inicializar `st.session_state` para almacenar datos y evitar que se pierdan al recargar
+if "track_list" not in st.session_state:
+    st.session_state.track_list = None
 
-# 📌 Título de la aplicación
-st.title("Fonoteca de Radio UMH - Añadir CD")
+# Función para verificar si el CD ya existe en la base de datos
+def cd_existe(numero):
+    with sqlite3.connect(db_path) as conn:
+        cursor = conn.cursor()
+        query = "SELECT COUNT(*) FROM fonoteca WHERE numero = ?"
+        cursor.execute(query, (numero,))
+        resultado = cursor.fetchone()
+    return resultado[0] > 0
 
-# 📌 Cargar datos existentes
-datos = cargar_datos()
-
-# 📌 Formulario para añadir un nuevo registro
-with st.form("formulario_alta", clear_on_submit=True):
-    nuevo_numero = st.text_input("Introduce el Nº (por ejemplo, 0001):")
-    nuevo_autor = st.text_input("Introduce el AUTOR:")
-    nuevo_nombre_cd = st.text_input("Introduce el NOMBRE CD:")
-
-    # Botón para enviar el formulario
-    submit = st.form_submit_button("Añadir registro y buscar canciones")
-
-    if submit:
-        st.write("Iniciando proceso de añadir registro...")
-        st.write(f"Datos ingresados: Nº={nuevo_numero}, AUTOR={nuevo_autor}, NOMBRE CD={nuevo_nombre_cd}")
-
-        if not (nuevo_numero and nuevo_autor and nuevo_nombre_cd):
-            st.error("Por favor, completa todos los campos antes de añadir el registro.")
-            st.stop()
-
-        # 📌 Buscar canciones en Spotify
-        canciones, album_image_url = buscar_canciones(nuevo_autor, nuevo_nombre_cd)
-        st.write(f"Se encontraron {len(canciones)} canciones para el álbum '{nuevo_nombre_cd}' de '{nuevo_autor}'.")
-
-        if not canciones:
-            st.warning("⚠️ No se encontraron canciones para este álbum en Spotify.")
-            
-            # 🔹 Crear un registro indicando que no se encontró el álbum
-            nuevo_registro = pd.DataFrame([{
-                "Nº": nuevo_numero,
-                "AUTOR": nuevo_autor,
-                "NOMBRE CD": nuevo_nombre_cd,
-                "TITULO": "Álbum no encontrado",
-                "URL": None,
-                "ID": None,
-                "IMAGEN_URL": None
-            }])
-
-            # 🔹 Agregar este registro a la Excel
-            datos = pd.concat([datos, nuevo_registro], ignore_index=True)
-            
-            # 🔹 Guardar cambios en la Excel
-            try:
-                guardar_datos(datos)
-                st.success(f"⚠️ Álbum '{nuevo_nombre_cd}' de '{nuevo_autor}' no encontrado en Spotify. Se ha registrado en la base de datos.")
-            except PermissionError:
-                st.error("⚠️ No se puede guardar el archivo. Asegúrate de que no está abierto en otro programa.")
-                st.stop()
-            except Exception as e:
-                st.error(f"Error al guardar los datos: {e}")
-                st.stop()
-
-            # 🔹 Detener ejecución tras guardar el registro
-            st.stop()
-
-        # 📌 Crear DataFrame con las canciones encontradas
-        canciones_df = pd.DataFrame(canciones)
-        canciones_df["Nº"] = nuevo_numero
-        canciones_df["AUTOR"] = nuevo_autor
-        canciones_df["NOMBRE CD"] = nuevo_nombre_cd
-
-        # 📌 Concatenar al DataFrame existente
-        datos = pd.concat([datos, canciones_df], ignore_index=True)
-
-        # 📌 Guardar datos en Excel
-        try:
-            guardar_datos(datos)
-            st.success(f"🎉 Se añadieron {len(canciones)} canciones del álbum '{nuevo_nombre_cd}' por '{nuevo_autor}'.")
-        except PermissionError:
-            st.error("⚠️ No se puede guardar el archivo. Asegúrate de que no está abierto en otro programa.")
-            st.stop()
-        except Exception as e:
-            st.error(f"Error al guardar los datos: {e}")
-            st.stop()
-
-        # 📌 Recargar datos después de guardar
-        datos = cargar_datos()
-        st.write("✅ Datos recargados después de guardar.")
-
-        # 📌 Mostrar la imagen del álbum debajo de la lista
-        if album_image_url:
-            st.image(album_image_url, caption=f"Carátula de '{nuevo_nombre_cd}' - {nuevo_autor}", use_container_width=True)
+# Botón para buscar en Spotify
+if st.button("🔍 Buscar en Spotify"):
+    if numero_cd and autor_cd and nombre_cd:
+        # Verificar si el número de CD ya existe
+        if cd_existe(numero_cd):
+            st.error(f"⚠️ El número de CD **{numero_cd}** ya está registrado en la fonoteca.")
         else:
-            st.warning("⚠️ No se encontró imagen para este álbum.")
+            # Buscar el álbum en Spotify
+            query = f"{nombre_cd} {autor_cd}"
+            result = sp.search(q=query, type="album", limit=1)
+
+            if result["albums"]["items"]:
+                album_data = result["albums"]["items"][0]
+                spotify_album_id = album_data["id"]
+                spotify_album_url = album_data["external_urls"]["spotify"]
+                album_cover = album_data["images"][0]["url"] if album_data["images"] else "No disponible"
+
+                # Obtener lista de canciones del álbum
+                track_list = []
+                album_tracks = sp.album_tracks(spotify_album_id)
+
+                for track in album_tracks["items"]:
+                    track_list.append({
+                        "numero": numero_cd,
+                        "autor": ", ".join([artist["name"] for artist in track["artists"]]),
+                        "nombre_cd": nombre_cd,
+                        "titulo": f'<a href="{track["external_urls"]["spotify"]}" target="_blank">{track["name"]}</a>',  # 🔗 Enlace en el título
+                        "url": track["external_urls"]["spotify"],  # No se mostrará en la tabla
+                        "spotify_id": track["id"],  # No se mostrará en la tabla
+                        "imagen_url": album_cover  # No se mostrará en la tabla
+                    })
+
+                # Guardar la lista en `st.session_state`
+                st.session_state.track_list = pd.DataFrame(track_list)
+
+                # 📌 Mostrar los datos antes de guardar con enlaces activos y sin columnas innecesarias
+                st.subheader("🎵 Canciones encontradas")
+                st.write(f"✅ Álbum encontrado en Spotify: **[{nombre_cd}]({spotify_album_url})**")
+                st.image(album_cover, caption="Carátula del CD", width=300)
+                
+                # Mostrar la tabla con títulos enlazados y sin columnas innecesarias
+                columnas_a_mostrar = ["numero", "autor", "nombre_cd", "titulo"]
+                st.write(st.session_state.track_list[columnas_a_mostrar].to_html(escape=False, index=False), unsafe_allow_html=True)
+
+# 📌 Botón de guardar solo si hay canciones en `st.session_state`
+if st.session_state.track_list is not None:
+    if st.button("💾 Guardar CD en la Fonoteca"):
+        st.write("📊 **Guardando datos en la base de datos...**")
+
+        # 📌 Guardar los datos en la base de datos
+        try:
+            with sqlite3.connect(db_path) as conn:
+                cursor = conn.cursor()
+
+                # Insertar datos manualmente
+                for _, row in st.session_state.track_list.iterrows():
+                    cursor.execute("""
+                        INSERT INTO fonoteca (numero, autor, nombre_cd, titulo, url, spotify_id, imagen_url) 
+                        VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                        (row["numero"], row["autor"], row["nombre_cd"], row["titulo"], row["url"], row["spotify_id"], row["imagen_url"]))
+                
+                conn.commit()
+
+                # 🔍 Verificar si los datos realmente se han guardado
+                query_verificacion = "SELECT * FROM fonoteca WHERE numero = ?"
+                verificacion_df = pd.read_sql_query(query_verificacion, conn, params=(numero_cd,))
+                
+                st.write("🔎 **Verificación en la base de datos después de guardar:**")
+                if verificacion_df.empty:
+                    st.error("❌ Los datos NO se han guardado en la base de datos. Algo está fallando.")
+                else:
+                    st.success(f"✅ El álbum '{nombre_cd}' de {autor_cd} ha sido agregado a la fonoteca.")
+                    st.dataframe(verificacion_df)
+
+                # ✅ Limpiar `st.session_state` después de guardar
+                st.session_state.track_list = None
+
+        except Exception as e:
+            st.error(f"❌ Error al guardar en la base de datos: {e}")
