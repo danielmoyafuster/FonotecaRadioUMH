@@ -21,6 +21,8 @@ st.write("Permisos del archivo:", os.stat(db_path))
 # comprobando integridad de la base de datos
 #
 
+
+
 try:
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
