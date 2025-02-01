@@ -88,10 +88,10 @@ if cds_encontrados:
             query_canciones = '''
                 SELECT numero, nombre_cd, autor, titulo, url
                 FROM fonoteca
-                WHERE nombre_cd = ? AND autor = ?
+                WHERE nombre_cd = ? AND autor LIKE ?
                 ORDER BY titulo
             '''
-            canciones_df = pd.read_sql_query(query_canciones, conn, params=(nombre_cd_real, busqueda))
+            canciones_df = pd.read_sql_query(query_canciones, conn, params=(nombre_cd_real, f"%{busqueda}%"))
         else:
             query_canciones = '''
                 SELECT numero, nombre_cd, autor, titulo, url
