@@ -1,6 +1,7 @@
 import streamlit as st
 import sqlite3
 import pandas as pd
+import os
 
 # Configurar la barra lateral
 st.sidebar.title("Consultar la Fonoteca")
@@ -23,7 +24,7 @@ st.sidebar.markdown(
 st.title("Fonoteca Radio UMH")
 
 # Conectar a la base de datos SQLite
-db_path = "./db/FonotecaRadioUMH.db"
+db_path = os.path.join(os.getcwd(), "db", "FonotecaRadioUMH.db")
 conn = sqlite3.connect(db_path)
 
 # Campos permitidos para la búsqueda
@@ -69,6 +70,8 @@ if cds_encontrados:
 
         if not imagen_df.empty and pd.notna(imagen_df['imagen_url'].iloc[0]) and imagen_df['imagen_url'].iloc[0] != 'No disponible':
             st.image(imagen_df['imagen_url'].iloc[0], caption=f"Carátula de {nombre_cd_real}", width=200)
+        else:
+            st.warning("⚠️ No hay carátula disponible para este CD.")
 
         # Consultar las canciones del CD
         query_canciones = 'SELECT numero, titulo, url FROM fonoteca WHERE nombre_cd = ? ORDER BY numero'
@@ -94,6 +97,6 @@ if cds_encontrados:
             # Mostrar la tabla con los resultados sin índice y con formato HTML
             st.write(canciones_df.to_html(escape=False, index=False), unsafe_allow_html=True)
 
-# Cerrar conexión con la base de datos
-conn.commit
+# Guardar cambios en la base de datos
+conn.commit()
 conn.close()
