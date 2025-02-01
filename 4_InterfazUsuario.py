@@ -5,7 +5,7 @@ import pandas as pd
 # Configurar la barra lateral
 st.sidebar.title("Consultar la Fonoteca")
 st.sidebar.markdown(
-    """
+    '''
     <div style="text-align: center; margin-top: 20px; margin-bottom: 20px;">
         <a href="https://radio.umh.es/" target="_blank">
             <img src="https://radio.umh.es/files/2023/07/FOTO-PERFIL-RADIO.png" 
@@ -15,7 +15,7 @@ st.sidebar.markdown(
         <p style="font-size: 16px; font-weight: bold; color: #333;">Gestión de la Fonoteca</p>
         <hr style="border: none; border-top: 1px solid #ccc; margin: 10px 0;">
     </div>
-    """,
+    ''',
     unsafe_allow_html=True,
 )
 
@@ -41,11 +41,11 @@ cds_encontrados = []
 # Si hay una búsqueda activa
 if busqueda:
     # Consultar los CDs donde se encuentran los criterios de búsqueda
-    query_cds = f"SELECT DISTINCT nombre_cd, imagen_url FROM fonoteca WHERE {campo_busqueda} LIKE ? ORDER BY nombre_cd"
+    query_cds = f"SELECT DISTINCT autor, nombre_cd, imagen_url FROM fonoteca WHERE {campo_busqueda} LIKE ? ORDER BY nombre_cd"
     cds_df = pd.read_sql_query(query_cds, conn, params=(f"%{busqueda}%",))
 
-    # Convertir los resultados a lista
-    cds_encontrados = cds_df["nombre_cd"].tolist()
+    # Convertir los resultados a lista con "Autor - Nombre del CD"
+    cds_encontrados = [f"{row['autor']} - {row['nombre_cd']}" for _, row in cds_df.iterrows()]
 
     # Contador de resultados
     num_cds_encontrados = len(cds_encontrados)
@@ -59,62 +59,40 @@ if busqueda:
 if cds_encontrados:
     cd_seleccionado = st.selectbox(f"Selecciona un CD ({num_cds_encontrados} encontrados):", cds_encontrados)
 
-    # Obtener la carátula del CD seleccionado
-    imagen_url = cds_df.loc[cds_df["nombre_cd"] == cd_seleccionado, "imagen_url"].values[0]
-
-    # Mostrar la carátula del CD si existe una URL válida
-    if pd.notna(imagen_url) and imagen_url != "No disponible":
-        st.image(imagen_url, caption=f"Carátula de {cd_seleccionado}", width=200)
-
-    # Si el usuario selecciona un CD, mostrar las canciones
     if cd_seleccionado:
-        if campo_busqueda == "titulo":
-            # Si la búsqueda fue por título, mostrar solo la canción buscada
-            query_canciones = """
-                SELECT numero, autor, nombre_cd, titulo, url
-                FROM fonoteca
-                WHERE nombre_cd = ? AND titulo LIKE ?
-                ORDER BY CAST(numero AS INTEGER) ASC
-            """
-            canciones_df = pd.read_sql_query(query_canciones, conn, params=(cd_seleccionado, f"%{busqueda}%"))
-        else:
-            # Mostrar todas las canciones del CD ordenadas por número
-            query_canciones = """
-                SELECT numero, autor, nombre_cd, titulo, url
-                FROM fonoteca
-                WHERE nombre_cd = ?
-                ORDER BY CAST(numero AS INTEGER) ASC
-            """
-            canciones_df = pd.read_sql_query(query_canciones, conn, params=(cd_seleccionado,))
+        # Extraer solo el nombre del CD sin el autor
+        nombre_cd_real = cd_seleccionado.split(' - ', 1)[1] if ' - ' in cd_seleccionado else cd_seleccionado
 
-        # Convertir los títulos de las canciones en enlaces a Spotify
-        def make_clickable(val, url):
-            if pd.notna(url) and url != "No disponible":
-                return f'<a href="{url}" target="_blank">{val}</a>'
-            return val
+        # Obtener la carátula del CD desde la base de datos
+        query_imagen = 'SELECT imagen_url FROM fonoteca WHERE nombre_cd = ? LIMIT 1'
+        imagen_df = pd.read_sql_query(query_imagen, conn, params=(nombre_cd_real,))
 
-        # Aplicar la conversión en la columna de títulos
-        canciones_df["titulo"] = canciones_df.apply(lambda row: make_clickable(row["titulo"], row["url"]), axis=1)
+        if not imagen_df.empty and pd.notna(imagen_df['imagen_url'].iloc[0]) and imagen_df['imagen_url'].iloc[0] != 'No disponible':
+            st.image(imagen_df['imagen_url'].iloc[0], caption=f"Carátula de {nombre_cd_real}", width=200)
 
-        # Eliminar la columna de URL, ya que ahora está integrada en el título
-        canciones_df.drop(columns=["url"], inplace=True)
+        # Consultar las canciones del CD
+        query_canciones = 'SELECT numero, titulo, url FROM fonoteca WHERE nombre_cd = ? ORDER BY numero'
+        canciones_df = pd.read_sql_query(query_canciones, conn, params=(nombre_cd_real,))
 
-        # Renombrar columnas a mayúsculas
-        canciones_df.columns = [col.upper() for col in canciones_df.columns]
+        if not canciones_df.empty:
+            st.write('Lista de Canciones:')
 
-        # Aplicar estilos CSS para alinear cabeceras a la izquierda
-        st.write(
-            """
-            <style>
-                table th { text-align: left !important; }
-            </style>
-            """,
-            unsafe_allow_html=True,
-        )
+            # Convertir los títulos en enlaces clicables
+            def make_clickable(val, url):
+                if pd.notna(url) and url != "No disponible":
+                    return f'<a href="{url}" target="_blank">{val}</a>'
+                return val
 
-        # Mostrar la tabla con los resultados sin índice y con formato HTML
-        st.write(f"Listado de canciones en el CD: **{cd_seleccionado}**")
-        st.write(canciones_df.to_html(escape=False, index=False), unsafe_allow_html=True)
+            canciones_df["titulo"] = canciones_df.apply(lambda row: make_clickable(row["titulo"], row["url"]), axis=1)
+
+            # Eliminar la columna URL, ya que está integrada en el título
+            canciones_df.drop(columns=["url"], inplace=True)
+
+            # Renombrar columnas a mayúsculas
+            canciones_df.columns = [col.upper() for col in canciones_df.columns]
+
+            # Mostrar la tabla con los resultados sin índice y con formato HTML
+            st.write(canciones_df.to_html(escape=False, index=False), unsafe_allow_html=True)
 
 # Cerrar conexión con la base de datos
 conn.close()
