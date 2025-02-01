@@ -4,7 +4,7 @@ import pandas as pd
 import os
 
 # 📌 Configurar la barra lateral
-st.sidebar.title("Consultar la Fonoteca 18:22")
+st.sidebar.title("Consultar la Fonoteca")
 st.sidebar.markdown(
     '''
     <div style="text-align: center; margin-top: 20px; margin-bottom: 20px;">
@@ -23,7 +23,7 @@ st.sidebar.markdown(
 # 📌 Configurar título de la app
 st.title("Fonoteca Radio UMH")
 
-# 📌 Conectar a la base de datos SQLite con una ruta segura
+# 📌 Conectar a la base de datos SQLite
 db_path = os.path.join(os.getcwd(), "db", "FonotecaRadioUMH.db")
 conn = sqlite3.connect(db_path)
 
@@ -31,8 +31,8 @@ conn = sqlite3.connect(db_path)
 conn.execute("PRAGMA journal_mode=DELETE;")
 conn.commit()
 
-# 📌 Campos permitidos para la búsqueda
-campos_permitidos = ["numero_cd", "autor", "titulo_cd"]
+# 📌 Campos permitidos para la búsqueda (ahora incluye "Título de Canción")
+campos_permitidos = ["numero_cd", "autor", "titulo_cd", "cancion"]
 
 # 📌 Seleccionar campo de búsqueda
 campo_busqueda = st.selectbox("Selecciona un campo para buscar:", campos_permitidos)
@@ -45,12 +45,24 @@ cds_encontrados = []
 
 # 📌 Si hay una búsqueda activa
 if busqueda:
-    query_cds = f'''
-        SELECT DISTINCT numero_cd, titulo_cd, autor, carátula_cd
-        FROM fonoteca_cd
-        WHERE {campo_busqueda} LIKE ?
-        ORDER BY titulo_cd
-    '''
+    if campo_busqueda == "cancion":
+        # 📌 Buscar el título de canción en `fonoteca_canciones` y obtener los datos del CD desde `fonoteca_cd`
+        query_cds = '''
+            SELECT DISTINCT c.numero_cd, c.titulo_cd, c.autor, c.carátula_cd
+            FROM fonoteca_cd c
+            JOIN fonoteca_canciones s ON c.numero_cd = s.numero_cd
+            WHERE s.cancion LIKE ?
+            ORDER BY c.titulo_cd
+        '''
+    else:
+        # 📌 Buscar en `fonoteca_cd` para las otras opciones
+        query_cds = f'''
+            SELECT DISTINCT numero_cd, titulo_cd, autor, carátula_cd
+            FROM fonoteca_cd
+            WHERE {campo_busqueda} LIKE ?
+            ORDER BY titulo_cd
+        '''
+    
     cds_df = pd.read_sql_query(query_cds, conn, params=(f"%{busqueda}%",))
 
     # 📌 Convertir los resultados a lista con "Número CD - Título CD - Autor"
@@ -83,13 +95,22 @@ if cds_encontrados:
             st.image("https://via.placeholder.com/200?text=Sin+Car%C3%A1tula", caption="Carátula no disponible", width=200)
 
         # 📌 Consultar las canciones del CD
-        query_canciones = '''
-            SELECT numero_cd, interprete_cancion, indice_cancion, cancion, cancion_url
-            FROM fonoteca_canciones
-            WHERE numero_cd = ?
-            ORDER BY indice_cancion
-        '''
-        canciones_df = pd.read_sql_query(query_canciones, conn, params=(numero_cd_real,))
+        if campo_busqueda == "cancion":
+            query_canciones = '''
+                SELECT numero_cd, interprete_cancion, indice_cancion, cancion, cancion_url
+                FROM fonoteca_canciones
+                WHERE numero_cd = ? AND cancion LIKE ?
+                ORDER BY indice_cancion
+            '''
+            canciones_df = pd.read_sql_query(query_canciones, conn, params=(numero_cd_real, f"%{busqueda}%"))
+        else:
+            query_canciones = '''
+                SELECT numero_cd, interprete_cancion, indice_cancion, cancion, cancion_url
+                FROM fonoteca_canciones
+                WHERE numero_cd = ?
+                ORDER BY indice_cancion
+            '''
+            canciones_df = pd.read_sql_query(query_canciones, conn, params=(numero_cd_real,))
 
         if not canciones_df.empty:
             st.write('Lista de Canciones:')
