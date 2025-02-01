@@ -32,24 +32,26 @@
 #except Exception as e:
 #    st.error(f"Error al abrir la base de datos: {e}")
 
-import os
 import sqlite3
 import streamlit as st
 
-# Asegurar que la carpeta 'db' existe
-db_folder = os.path.abspath("db")
-if not os.path.exists(db_folder):
-    os.makedirs(db_folder)
-
-# Usar una ruta absoluta para la base de datos
-db_path = os.path.join(db_folder, "FonotecaRadioUMH.db")
+db_path = "./db/FonotecaRadioUMH.db"
 
 try:
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
-    cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
-    tablas = cursor.fetchall()
-    st.write("Tablas en la base de datos:", tablas)
+    
+    # Contar cuántos registros hay en la tabla fonoteca
+    cursor.execute("SELECT COUNT(*) FROM fonoteca;")
+    total_registros = cursor.fetchone()[0]
+
+    # Mostrar algunos registros de ejemplo
+    cursor.execute("SELECT * FROM fonoteca LIMIT 5;")
+    muestras = cursor.fetchall()
+
+    st.write(f"Total de registros en fonoteca: {total_registros}")
+    st.write("Ejemplo de registros en fonoteca:", muestras)
+
     conn.close()
 except Exception as e:
-    st.error(f"Error al conectar con la base de datos: {e}")
+    st.error(f"Error al consultar la base de datos: {e}")
