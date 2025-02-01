@@ -45,17 +45,17 @@ cds_encontrados = []
 
 # Si hay una búsqueda activa
 if busqueda:
-    # Consultar los CDs donde se encuentran los criterios de búsqueda
-    query_cds = f'''
-        SELECT DISTINCT autor, nombre_cd, imagen_url
+    query_cds = '''
+        SELECT DISTINCT numero, nombre_cd, autor, imagen_url
         FROM fonoteca
-        WHERE CAST({campo_busqueda} AS TEXT) LIKE ?
+        WHERE CAST({} AS TEXT) LIKE ?
         ORDER BY nombre_cd
-    '''
+    '''.format(campo_busqueda)
+
     cds_df = pd.read_sql_query(query_cds, conn, params=(f"%{busqueda}%",))
 
-    # Convertir los resultados a lista con "Autor - Nombre del CD"
-    cds_encontrados = [f"{row['autor']} - {row['nombre_cd']}" for _, row in cds_df.iterrows()]
+    # Convertir los resultados a lista con "Número CD - Nombre CD - Autor"
+    cds_encontrados = [f"{row['numero']} - {row['nombre_cd']} - {row['autor']}" for _, row in cds_df.iterrows()]
 
     # Contador de resultados
     num_cds_encontrados = len(cds_encontrados)
@@ -70,8 +70,9 @@ if cds_encontrados:
     cd_seleccionado = st.selectbox(f"Selecciona un CD ({num_cds_encontrados} encontrados):", cds_encontrados)
 
     if cd_seleccionado:
-        # Extraer solo el nombre del CD sin el autor
-        nombre_cd_real = cd_seleccionado.split(' - ', 1)[1] if ' - ' in cd_seleccionado else cd_seleccionado
+        # Extraer número, nombre y autor del CD seleccionado
+        partes = cd_seleccionado.split(' - ')
+        numero_cd_real, nombre_cd_real, autor_cd_real = partes[0], partes[1], partes[2]
 
         # Obtener la carátula del CD desde la base de datos
         query_imagen = 'SELECT imagen_url FROM fonoteca WHERE nombre_cd = ? LIMIT 1'
@@ -83,19 +84,28 @@ if cds_encontrados:
             st.image("https://via.placeholder.com/200?text=Sin+Car%C3%A1tula", caption="Carátula no disponible", width=200)
 
         # Consultar las canciones del CD
-        query_canciones = '''
-            SELECT numero, autor, nombre_cd, titulo, url
-            FROM fonoteca
-            WHERE nombre_cd = ?
-            ORDER BY titulo
-        '''
-        canciones_df = pd.read_sql_query(query_canciones, conn, params=(nombre_cd_real,))
+        if campo_busqueda == "autor":
+            query_canciones = '''
+                SELECT numero, nombre_cd, autor, titulo, url
+                FROM fonoteca
+                WHERE nombre_cd = ? AND autor = ?
+                ORDER BY titulo
+            '''
+            canciones_df = pd.read_sql_query(query_canciones, conn, params=(nombre_cd_real, busqueda))
+        else:
+            query_canciones = '''
+                SELECT numero, nombre_cd, autor, titulo, url
+                FROM fonoteca
+                WHERE nombre_cd = ?
+                ORDER BY titulo
+            '''
+            canciones_df = pd.read_sql_query(query_canciones, conn, params=(nombre_cd_real,))
 
         if not canciones_df.empty:
             st.write('Lista de Canciones:')
 
             # Generar índice de canción (1, 2, 3, ...)
-            canciones_df.insert(2, "ÍNDICE", range(1, len(canciones_df) + 1))
+            canciones_df.insert(3, "ÍNDICE", range(1, len(canciones_df) + 1))
 
             # Convertir los títulos en enlaces clicables
             def make_clickable(val, url):
@@ -108,8 +118,18 @@ if cds_encontrados:
             # Eliminar la columna URL, ya que está integrada en el título
             canciones_df.drop(columns=["url"], inplace=True)
 
-            # Renombrar columnas con los nombres correctos
-            # canciones_df.columns = ["NÚMERO DE CD", "AUTOR", "ÍNDICE", "CANCIÓN"]
+            # Renombrar columnas con los nombres correctos en MAYÚSCULAS
+            canciones_df.columns = ["NÚMERO", "NOMBRE CD", "AUTOR", "ÍNDICE", "TÍTULO"]
+
+            # Estilos CSS para alinear la cabecera a la izquierda
+            st.write(
+                """
+                <style>
+                    table th { text-align: left !important; }
+                </style>
+                """,
+                unsafe_allow_html=True,
+            )
 
             # Mostrar la tabla con los resultados correctamente ordenados
             st.write(canciones_df.to_html(escape=False, index=False), unsafe_allow_html=True)
