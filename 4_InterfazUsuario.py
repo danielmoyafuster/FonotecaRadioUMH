@@ -23,9 +23,13 @@ st.sidebar.markdown(
 # Configurar título de la app
 st.title("Fonoteca Radio UMH")
 
-# Conectar a la base de datos SQLite
+# Conectar a la base de datos SQLite con una ruta segura
 db_path = os.path.join(os.getcwd(), "db", "FonotecaRadioUMH.db")
 conn = sqlite3.connect(db_path)
+
+# Desactivar modo WAL para evitar problemas en la conexión
+conn.execute("PRAGMA journal_mode=DELETE;")
+conn.commit()
 
 # Campos permitidos para la búsqueda
 campos_permitidos = ["numero", "autor", "nombre_cd", "titulo"]
@@ -42,7 +46,12 @@ cds_encontrados = []
 # Si hay una búsqueda activa
 if busqueda:
     # Consultar los CDs donde se encuentran los criterios de búsqueda
-    query_cds = f"SELECT DISTINCT autor, nombre_cd, imagen_url FROM fonoteca WHERE {campo_busqueda} LIKE ? ORDER BY nombre_cd"
+    query_cds = f'''
+        SELECT DISTINCT autor, nombre_cd, imagen_url
+        FROM fonoteca
+        WHERE CAST({campo_busqueda} AS TEXT) LIKE ?
+        ORDER BY nombre_cd
+    '''
     cds_df = pd.read_sql_query(query_cds, conn, params=(f"%{busqueda}%",))
 
     # Convertir los resultados a lista con "Autor - Nombre del CD"
@@ -73,17 +82,20 @@ if cds_encontrados:
         else:
             st.image("https://via.placeholder.com/200?text=Sin+Car%C3%A1tula", caption="Carátula no disponible", width=200)
 
-        # Consultar las canciones del CD con todas las columnas necesarias y ordenadas por índice
+        # Consultar las canciones del CD
         query_canciones = '''
-            SELECT numero, autor, nombre_cd, numero AS indice, titulo, url
+            SELECT numero, autor, nombre_cd, titulo, url
             FROM fonoteca
             WHERE nombre_cd = ?
-            ORDER BY CAST(numero AS INTEGER) ASC
+            ORDER BY titulo
         '''
         canciones_df = pd.read_sql_query(query_canciones, conn, params=(nombre_cd_real,))
 
         if not canciones_df.empty:
             st.write('Lista de Canciones:')
+
+            # Generar índice de canción (1, 2, 3, ...)
+            canciones_df.insert(2, "ÍNDICE", range(1, len(canciones_df) + 1))
 
             # Convertir los títulos en enlaces clicables
             def make_clickable(val, url):
@@ -96,7 +108,7 @@ if cds_encontrados:
             # Eliminar la columna URL, ya que está integrada en el título
             canciones_df.drop(columns=["url"], inplace=True)
 
-            # Renombrar columnas a mayúsculas para mejorar la presentación
+            # Renombrar columnas con los nombres correctos
             canciones_df.columns = ["NÚMERO DE CD", "AUTOR", "ÍNDICE", "CANCIÓN"]
 
             # Mostrar la tabla con los resultados correctamente ordenados
