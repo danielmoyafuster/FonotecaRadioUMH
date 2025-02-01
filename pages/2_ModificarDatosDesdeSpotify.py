@@ -31,9 +31,7 @@ sp = spotipy.Spotify(auth_manager=SpotifyClientCredentials(client_id=SPOTIFY_CLI
 # Configurar título de la app
 st.title("Actualizar Álbumes No Encontrados en Spotify")
 
-# 🔹 Inicializar `st.session_state` para evitar errores
-if "spotify_id_input" not in st.session_state:
-    st.session_state["spotify_id_input"] = ""
+
 
 # Función para cargar los álbumes no encontrados
 def cargar_albumes_no_encontrados():
@@ -50,13 +48,17 @@ def cargar_albumes_no_encontrados():
 
     # Eliminar valores "nan"
     albumes_df = albumes_df.dropna()
+    # 🔹 Inicializar `st.session_state` para evitar errores
+    if "spotify_id_input" not in st.session_state:
+        st.session_state["spotify_id_input"] = ""
     
     return albumes_df
 
 # 🔄 Botón para recargar la lista de álbumes y vaciar la ID
 if st.button("🔄 Recargar Lista de Álbumes"):
-    st.session_state["spotify_id_input"] = ""  # Vaciar el cuadro de ID
     st.rerun()
+    st.session_state["spotify_id_input"] = ""  # Vaciar el cuadro de ID
+    
 
 # Cargar álbumes al inicio
 albumes_df = cargar_albumes_no_encontrados()

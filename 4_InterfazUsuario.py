@@ -95,4 +95,5 @@ if cds_encontrados:
             st.write(canciones_df.to_html(escape=False, index=False), unsafe_allow_html=True)
 
 # Cerrar conexión con la base de datos
+conn.commit
 conn.close()
