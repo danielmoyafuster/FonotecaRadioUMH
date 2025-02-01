@@ -41,80 +41,17 @@ cds_encontrados = []
 # Si hay una búsqueda activa
 if busqueda:
     # Consultar los CDs donde se encuentran los criterios de búsqueda
-    query_cds = f"SELECT DISTINCT nombre_cd, imagen_url FROM fonoteca WHERE {campo_busqueda} LIKE ? ORDER BY nombre_cd"
+    query_cds = f"SELECT DISTINCT autor, nombre_cd, imagen_url FROM fonoteca WHERE {campo_busqueda} LIKE ? ORDER BY nombre_cd"
     cds_df = pd.read_sql_query(query_cds, conn, params=(f"%{busqueda}%",))
 
-    # Convertir los resultados a lista
-    cds_encontrados = cds_df["nombre_cd"].tolist()
+    # Convertir los resultados a lista con el formato "Autor - Nombre del CD"
+    cds_encontrados = [f"{row['autor']} - {row['nombre_cd']}" for _, row in cds_df.iterrows()]
 
     # Contador de resultados
-    num_cds_encontrados = len(cds_encontrados)
+    st.write(f"Resultados encontrados: {len(cds_encontrados)}")
 
-    # Mostrar mensaje si no se encuentra ningún CD
-    if not cds_encontrados:
-        st.error(f"⚠️ No se encontraron resultados para '{busqueda}' en el campo '{campo_busqueda}'.")
-        st.warning("🔍 Intenta con otro término de búsqueda o revisa la ortografía.")
+# Combo para seleccionar un CD
+cd_seleccionado = st.selectbox("Selecciona un CD:", cds_encontrados)
 
-# Mostrar el combo si hay CDs encontrados
-if cds_encontrados:
-    cd_seleccionado = st.selectbox(f"Selecciona un CD ({num_cds_encontrados} encontrados):", cds_encontrados)
-
-    # Obtener la carátula del CD seleccionado
-    imagen_url = cds_df.loc[cds_df["nombre_cd"] == cd_seleccionado, "imagen_url"].values[0]
-
-    # Mostrar la carátula del CD si existe una URL válida
-    if pd.notna(imagen_url) and imagen_url != "No disponible":
-        st.image(imagen_url, caption=f"Carátula de {cd_seleccionado}", width=200)
-
-    # Si el usuario selecciona un CD, mostrar las canciones
-    if cd_seleccionado:
-        if campo_busqueda == "titulo":
-            # Si la búsqueda fue por título, mostrar solo la canción buscada
-            query_canciones = """
-                SELECT numero, autor, nombre_cd, titulo, url
-                FROM fonoteca
-                WHERE nombre_cd = ? AND titulo LIKE ?
-                ORDER BY CAST(numero AS INTEGER) ASC
-            """
-            canciones_df = pd.read_sql_query(query_canciones, conn, params=(cd_seleccionado, f"%{busqueda}%"))
-        else:
-            # Mostrar todas las canciones del CD ordenadas por número
-            query_canciones = """
-                SELECT numero, autor, nombre_cd, titulo, url
-                FROM fonoteca
-                WHERE nombre_cd = ?
-                ORDER BY CAST(numero AS INTEGER) ASC
-            """
-            canciones_df = pd.read_sql_query(query_canciones, conn, params=(cd_seleccionado,))
-
-        # Convertir los títulos de las canciones en enlaces a Spotify
-        def make_clickable(val, url):
-            if pd.notna(url) and url != "No disponible":
-                return f'<a href="{url}" target="_blank">{val}</a>'
-            return val
-
-        # Aplicar la conversión en la columna de títulos
-        canciones_df["titulo"] = canciones_df.apply(lambda row: make_clickable(row["titulo"], row["url"]), axis=1)
-
-        # Eliminar la columna de URL, ya que ahora está integrada en el título
-        canciones_df.drop(columns=["url"], inplace=True)
-
-        # Renombrar columnas a mayúsculas
-        canciones_df.columns = [col.upper() for col in canciones_df.columns]
-
-        # Aplicar estilos CSS para alinear cabeceras a la izquierda
-        st.write(
-            """
-            <style>
-                table th { text-align: left !important; }
-            </style>
-            """,
-            unsafe_allow_html=True,
-        )
-
-        # Mostrar la tabla con los resultados sin índice y con formato HTML
-        st.write(f"Listado de canciones en el CD: **{cd_seleccionado}**")
-        st.write(canciones_df.to_html(escape=False, index=False), unsafe_allow_html=True)
-
-# Cerrar conexión con la base de datos
+# Cerrar la conexión a la base de datos
 conn.close()
