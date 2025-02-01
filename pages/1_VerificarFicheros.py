@@ -55,3 +55,20 @@ try:
     conn.close()
 except Exception as e:
     st.error(f"Error al consultar la base de datos: {e}")
+
+#
+# reparar base de datos
+#
+
+
+db_path = "./db/FonotecaRadioUMH.db"
+
+try:
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    cursor.execute("PRAGMA integrity_check;")
+    result = cursor.fetchone()
+    st.write("Resultado de PRAGMA integrity_check:", result)
+    conn.close()
+except Exception as e:
+    st.error(f"Error al verificar la base de datos: {e}")
