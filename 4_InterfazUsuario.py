@@ -74,7 +74,7 @@ if cds_encontrados:
             st.warning("⚠️ No hay carátula disponible para este CD.")
 
         # Consultar las canciones del CD
-        query_canciones = 'SELECT numero, autor, titulo, url FROM fonoteca WHERE nombre_cd = ? ORDER BY numero'
+        query_canciones = 'SELECT numero, titulo, url FROM fonoteca WHERE nombre_cd = ? ORDER BY numero'
         canciones_df = pd.read_sql_query(query_canciones, conn, params=(nombre_cd_real,))
 
         if not canciones_df.empty:
