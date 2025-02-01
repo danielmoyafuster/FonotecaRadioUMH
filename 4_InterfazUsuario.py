@@ -4,7 +4,7 @@ import pandas as pd
 import os
 
 # 📌 Configurar la barra lateral
-st.sidebar.title("Consultar la Fonoteca")
+st.sidebar.title("Consultar la Fonoteca 18:22")
 st.sidebar.markdown(
     '''
     <div style="text-align: center; margin-top: 20px; margin-bottom: 20px;">
