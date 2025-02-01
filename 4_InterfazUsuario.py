@@ -109,7 +109,7 @@ if cds_encontrados:
             canciones_df.drop(columns=["url"], inplace=True)
 
             # Renombrar columnas con los nombres correctos
-            canciones_df.columns = ["NÚMERO DE CD", "AUTOR", "ÍNDICE", "CANCIÓN"]
+            # canciones_df.columns = ["NÚMERO DE CD", "AUTOR", "ÍNDICE", "CANCIÓN"]
 
             # Mostrar la tabla con los resultados correctamente ordenados
             st.write(canciones_df.to_html(escape=False, index=False), unsafe_allow_html=True)
