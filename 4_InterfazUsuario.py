@@ -31,7 +31,7 @@ conn = sqlite3.connect(db_path)
 conn.execute("PRAGMA journal_mode=DELETE;")
 conn.commit()
 
-# 📌 Campos permitidos para la búsqueda (ahora incluye "Título de Canción")
+# 📌 Campos permitidos para la búsqueda (ahora la búsqueda por "autor" se hace en `fonoteca_canciones`)
 campos_permitidos = ["numero_cd", "autor", "titulo_cd", "cancion"]
 
 # 📌 Seleccionar campo de búsqueda
@@ -46,12 +46,21 @@ cds_encontrados = []
 # 📌 Si hay una búsqueda activa
 if busqueda:
     if campo_busqueda == "cancion":
-        # 📌 Buscar el título de canción en `fonoteca_canciones` y obtener los datos del CD desde `fonoteca_cd`
+        # 📌 Buscar en `fonoteca_canciones` por título de canción y obtener datos del CD desde `fonoteca_cd`
         query_cds = '''
             SELECT DISTINCT c.numero_cd, c.titulo_cd, c.autor, c.carátula_cd
             FROM fonoteca_cd c
             JOIN fonoteca_canciones s ON c.numero_cd = s.numero_cd
             WHERE s.cancion LIKE ?
+            ORDER BY c.titulo_cd
+        '''
+    elif campo_busqueda == "autor":
+        # 📌 Buscar en `fonoteca_canciones` por el intérprete de la canción y obtener datos del CD
+        query_cds = '''
+            SELECT DISTINCT c.numero_cd, c.titulo_cd, c.autor, c.carátula_cd
+            FROM fonoteca_cd c
+            JOIN fonoteca_canciones s ON c.numero_cd = s.numero_cd
+            WHERE s.interprete_cancion LIKE ?
             ORDER BY c.titulo_cd
         '''
     else:
@@ -103,6 +112,14 @@ if cds_encontrados:
                 ORDER BY indice_cancion
             '''
             canciones_df = pd.read_sql_query(query_canciones, conn, params=(numero_cd_real, f"%{busqueda}%"))
+        elif campo_busqueda == "autor":
+            query_canciones = '''
+                SELECT numero_cd, interprete_cancion, indice_cancion, cancion, cancion_url
+                FROM fonoteca_canciones
+                WHERE numero_cd = ? AND interprete_cancion LIKE ?
+                ORDER BY indice_cancion
+            '''
+            canciones_df = pd.read_sql_query(query_canciones, conn, params=(numero_cd_real, f"%{busqueda}%"))
         else:
             query_canciones = '''
                 SELECT numero_cd, interprete_cancion, indice_cancion, cancion, cancion_url
@@ -129,17 +146,7 @@ if cds_encontrados:
             # 📌 Renombrar columnas con los nombres correctos en MAYÚSCULAS
             canciones_df.columns = ["NÚMERO CD", "INTÉRPRETE", "ÍNDICE", "CANCIÓN"]
 
-            # 📌 Estilos CSS para alinear la cabecera a la izquierda
-            st.write(
-                """
-                <style>
-                    table th { text-align: left !important; }
-                </style>
-                """,
-                unsafe_allow_html=True,
-            )
-
-            # 📌 Mostrar la tabla con los resultados correctamente ordenados
+            # 📌 Mostrar la tabla
             st.write(canciones_df.to_html(escape=False, index=False), unsafe_allow_html=True)
 
 # 📌 Guardar cambios en la base de datos
