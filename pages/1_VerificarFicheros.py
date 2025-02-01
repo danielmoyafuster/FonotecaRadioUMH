@@ -31,7 +31,6 @@
 #    conn.close()
 #except Exception as e:
 #    st.error(f"Error al abrir la base de datos: {e}")
-
 import sqlite3
 import streamlit as st
 
@@ -41,34 +40,12 @@ try:
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     
-    # Contar cuántos registros hay en la tabla fonoteca
-    cursor.execute("SELECT COUNT(*) FROM fonoteca;")
-    total_registros = cursor.fetchone()[0]
-
-    # Mostrar algunos registros de ejemplo
-    cursor.execute("SELECT * FROM fonoteca LIMIT 5;")
-    muestras = cursor.fetchall()
-
-    st.write(f"Total de registros en fonoteca: {total_registros}")
-    st.write("Ejemplo de registros en fonoteca:", muestras)
+    # Obtener nombres de las columnas de la tabla "fonoteca"
+    cursor.execute("PRAGMA table_info(fonoteca);")
+    columnas = cursor.fetchall()
+    
+    st.write("Columnas de la tabla fonoteca:", columnas)
 
     conn.close()
 except Exception as e:
-    st.error(f"Error al consultar la base de datos: {e}")
-
-#
-# reparar base de datos
-#
-
-
-db_path = "./db/FonotecaRadioUMH.db"
-
-try:
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-    cursor.execute("PRAGMA integrity_check;")
-    result = cursor.fetchone()
-    st.write("Resultado de PRAGMA integrity_check:", result)
-    conn.close()
-except Exception as e:
-    st.error(f"Error al verificar la base de datos: {e}")
+    st.error(f"Error al obtener nombres de columnas: {e}")
