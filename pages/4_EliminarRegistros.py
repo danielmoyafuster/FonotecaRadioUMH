@@ -1,6 +1,9 @@
 import pandas as pd
 import streamlit as st
 import sqlite3
+import os
+
+# 📌 Configurar la barra lateral
 st.sidebar.title("Eliminar Registros")
 st.sidebar.markdown(
     """
@@ -17,57 +20,71 @@ st.sidebar.markdown(
     unsafe_allow_html=True,
 )
 
-# Ruta de la base de datos
-db_path = "./db/FonotecaRadioUMH.db"
+# 📌 Ruta de la base de datos con una conexión segura
+db_path = os.path.join(os.getcwd(), "db", "FonotecaRadioUMH.db")
 
-# Conectar a la base de datos
+# 📌 Asegurar que la base de datos se pueda abrir
 conn = sqlite3.connect(db_path)
-cursor = conn.cursor()
+conn.execute("PRAGMA journal_mode=DELETE;")
+conn.commit()
+conn.close()
 
-# Formulario para seleccionar el número de CD a eliminar
+# 📌 Título principal
 st.title("Eliminar un CD de la Fonoteca")
-numero_cd = st.text_input("Introduce el Número del CD que quieres eliminar:")
 
+# 📌 Entrada del número de CD a eliminar
+numero_cd = st.text_input("Introduce el Número del CD que quieres eliminar:").strip()
+
+# 📌 Inicializar `st.session_state` para almacenar la tabla de resultados temporalmente
+if "consulta_resultados" not in st.session_state:
+    st.session_state.consulta_resultados = None
+
+# 📌 Botón para buscar el CD en la base de datos
 if st.button("🔍 Buscar CD"):
-    query = "SELECT numero, autor, nombre_cd, titulo, url FROM fonoteca WHERE numero = ?"
-    df = pd.read_sql_query(query, conn, params=(numero_cd,))
+    with sqlite3.connect(db_path) as conn:
+        query = "SELECT numero, autor, nombre_cd, titulo, url FROM fonoteca WHERE numero = ?"
+        df = pd.read_sql_query(query, conn, params=(numero_cd,))
 
     if df.empty:
         st.warning("⚠️ No se encontraron registros con ese número de CD.")
+        st.session_state.consulta_resultados = None
     else:
-        # Convertir los títulos en enlaces activos
+        # 📌 Convertir los títulos en enlaces clicables sin alterar la estructura de la base de datos
         df["titulo"] = df.apply(lambda row: f'<a href="{row["url"]}" target="_blank">{row["titulo"]}</a>', axis=1)
 
-        # Eliminar la columna "url" de la tabla antes de mostrarla
+        # 📌 Eliminar la columna "url" ya que está integrada en el título
         df.drop(columns=["url"], inplace=True)
 
-        # Renombrar columnas a mayúsculas
-        df.columns = [col.upper() for col in df.columns]
+        # 📌 Renombrar columnas en MAYÚSCULAS
+        df.columns = ["NÚMERO", "AUTOR", "NOMBRE CD", "TÍTULO"]
+
+        # 📌 Guardar resultados en `st.session_state`
+        st.session_state.consulta_resultados = df
 
         # 📌 Aplicar estilos CSS para alinear cabeceras a la izquierda
         st.write(
             """
             <style>
-                table th {
-                    text-align: left !important;
-                }
+                table th { text-align: left !important; }
             </style>
             """,
             unsafe_allow_html=True,
         )
 
-        # Mostrar la tabla con los enlaces correctamente renderizados
-        st.write("🎵 **Canciones encontradas:**")
-        columnas_a_mostrar = ["NUMERO", "AUTOR", "NOMBRE_CD", "TITULO"]
-        st.write(df[columnas_a_mostrar].to_html(escape=False, index=False), unsafe_allow_html=True)
+        # 📌 Mostrar la tabla con los resultados
+        st.write("🎵 **Canciones encontradas en el CD:**")
+        st.write(df.to_html(escape=False, index=False), unsafe_allow_html=True)
 
-if st.button("❌ Eliminar CD"):
-    if numero_cd:
-        cursor.execute("DELETE FROM fonoteca WHERE numero = ?", (numero_cd,))
-        conn.commit()
+# 📌 Botón para eliminar el CD (solo si hay resultados en `st.session_state`)
+if st.session_state.consulta_resultados is not None:
+    if st.button("❌ Eliminar CD"):
+        with sqlite3.connect(db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM fonoteca WHERE numero = ?", (numero_cd,))
+            conn.commit()
+
         st.success(f"✅ Se han eliminado todos los registros con el Número de CD {numero_cd}.")
-    else:
-        st.warning("⚠️ Introduce un número de CD válido.")
-
-# Cerrar la conexión
-conn.close()
+        
+        # 📌 Vaciar `st.session_state` después de eliminar
+        st.session_state.consulta_resultados = None
+        st.rerun()
