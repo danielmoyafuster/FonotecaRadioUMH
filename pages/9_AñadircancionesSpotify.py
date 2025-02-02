@@ -1,20 +1,81 @@
+import streamlit as st
 import sqlite3
 import requests
 import time
-from tqdm import tqdm  # Para la barra de progreso
+#
+# configurar la estetica de la página
+#
+# 📌 Configurar la barra lateral
+st.sidebar.title("Buscar canciones en SPOTIFY")
+st.markdown(
+    '''
+    <style>
+        /* 🔹 Quitar bordes de la tabla */
+        table {
+            border-collapse: collapse;
+            border: none;
+            background: transparent;
+            width: 100%;
+        }
 
-# Configurar credenciales de Spotify
+        /* 🔹 Quitar bordes y fondo de las celdas */
+        th, td {
+            border: none !important;
+            background: transparent !important;
+            padding: 10px;
+        }
+
+        /* 🔹 Ajustar tamaño y estilos de la imagen */
+        .logo-container img {
+            width: 180px;  /* Aumentamos un poco el tamaño */
+            border-radius: 10px;
+            transition: transform 0.2s;
+        }
+
+        /* 🔹 Efecto hover en la imagen */
+        .logo-container img:hover {
+            transform: scale(1.1); /* Hace que la imagen se agrande un poco al pasar el ratón */
+        }
+
+        /* 🔹 Centrar el título */
+        .title-container h1 {
+            color: #BD2830;
+            text-align: center;
+            font-size: 30px;
+        }
+    </style>
+
+    <table>
+        <tr>
+            <th class="logo-container">
+                <a href="https://radio.umh.es/" target="_blank">
+                    <img src="https://radio.umh.es/files/2023/07/FOTO-PERFIL-RADIO.png" 
+                         alt="Radio UMH">
+                </a>
+            </th>
+            <th class="title-container">
+                <h1>Consultar la Fonoteca</h1>
+            </th>
+        </tr>
+    </table>
+    ''',
+    unsafe_allow_html=True,
+)
+#
+# .-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+#
+# 📌 Configurar credenciales de Spotify
 CLIENT_ID = "f539334f19094e47ae8df45cc373cce9"
 CLIENT_SECRET = "62f90ff98a2d4602968a488129aeae31"
 
-# Base de datos SQLite
+# 📌 Ruta de la base de datos SQLite
 DB_PATH = "./db/FonotecaRadioUMH.db"
 
-# URL de autenticación de Spotify
+# 📌 URL de autenticación de Spotify
 AUTH_URL = "https://accounts.spotify.com/api/token"
 
+# 🔹 Función para obtener el token de autenticación de Spotify
 def obtener_token_spotify():
-    """ Obtiene el token de autenticación de Spotify """
     response = requests.post(AUTH_URL, {
         "grant_type": "client_credentials",
         "client_id": CLIENT_ID,
@@ -23,8 +84,8 @@ def obtener_token_spotify():
     data = response.json()
     return data.get("access_token")
 
+# 🔹 Función para obtener canciones de un álbum en Spotify
 def obtener_canciones_album(id_cd_spotify, token):
-    """ Obtiene TODAS las canciones de un álbum en Spotify (maneja paginación correctamente) """
     url = f"https://api.spotify.com/v1/albums/{id_cd_spotify}/tracks?limit=50"
     headers = {"Authorization": f"Bearer {token}"}
 
@@ -47,49 +108,65 @@ def obtener_canciones_album(id_cd_spotify, token):
     
     return canciones
 
+# 🔹 Función para importar canciones y actualizar la base de datos
 def importar_canciones():
-    """ Obtiene los datos de los CDs con id_cd y busca sus canciones en Spotify """
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
 
-    # 🔍 Obtener SOLO los CDs con id_cd
+    # Obtener SOLO los CDs con id_cd que aún no tienen canciones
     cursor.execute("""
-        SELECT id, id_cd 
-        FROM fonoteca_cd
-        WHERE id_cd IS NOT NULL AND id_cd != '';
+        SELECT fc.id, fc.id_cd 
+        FROM fonoteca_cd fc
+        LEFT JOIN fonoteca_canciones fca ON fc.id = fca.id
+        WHERE fc.id_cd IS NOT NULL AND fc.id_cd != '' 
+        GROUP BY fc.id 
+        HAVING COUNT(fca.id) = 0;
     """)
     cds = cursor.fetchall()
+    conn.close()
 
     if not cds:
-        print("✅ No hay CDs con id_cd en Spotify. Nada que importar.")
-        conn.close()
+        st.success("✅ Todos los CDs ya tienen canciones archivadas. No hay nada que importar.")
         return
 
     # Obtener token de Spotify
     token = obtener_token_spotify()
 
-    # Barra de progreso
+    # Barra de progreso en Streamlit
+    progress_bar = st.progress(0)
+    total_cds = len(cds)
+
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+
     try:
-        with tqdm(total=len(cds), desc="Obteniendo canciones de Spotify", unit=" CD") as pbar:
-            for id_cd_local, id_cd_spotify in cds:
-                canciones = obtener_canciones_album(id_cd_spotify, token)
+        for index, (id_cd_local, id_cd_spotify) in enumerate(cds):
+            canciones = obtener_canciones_album(id_cd_spotify, token)
 
-                for cancion in canciones:
-                    cursor.execute("""
-                        INSERT INTO fonoteca_canciones (id, disc_number, interprete_cancion, track_number, cancion, cancion_url)
-                        VALUES (?, ?, ?, ?, ?, ?);
-                    """, (id_cd_local, cancion["disc_number"], cancion["interprete"], cancion["track_number"], cancion["cancion"], cancion["cancion_url"]))
+            for cancion in canciones:
+                cursor.execute("""
+                    INSERT INTO fonoteca_canciones (id, disc_number, interprete_cancion, track_number, cancion, cancion_url)
+                    VALUES (?, ?, ?, ?, ?, ?);
+                """, (id_cd_local, cancion["disc_number"], cancion["interprete"], cancion["track_number"], cancion["cancion"], cancion["cancion_url"]))
 
-                conn.commit()
-                pbar.update(1)  
-                time.sleep(0.5)  # Reducimos la pausa para acelerar el proceso
+            conn.commit()
 
-    except KeyboardInterrupt:
-        print("\n⏸ Interrupción detectada. Guardando progreso y cerrando.")
-    
+            # Actualizar la barra de progreso en Streamlit
+            progress_bar.progress((index + 1) / total_cds)
+
+            time.sleep(0.5)  # Reducimos la pausa para acelerar el proceso
+
+        st.success("✅ Proceso finalizado: Todas las canciones han sido archivadas correctamente.")
+
+    except Exception as e:
+        st.error(f"❌ Error durante la importación: {e}")
+
     finally:
         conn.close()
-        print("\n✅ Proceso finalizado correctamente.")
 
-if __name__ == "__main__":
+# 🔹 Interfaz en Streamlit
+st.markdown("<h2 style='color: #BD2830; text-align: center;'>Actualizar Canciones desde Spotify</h2>", unsafe_allow_html=True)
+st.write("Este módulo buscará los CDs en la base de datos que aún no tienen canciones importadas desde Spotify y procederá a archivarlas.")
+
+if st.button("Iniciar Importación"):
     importar_canciones()
