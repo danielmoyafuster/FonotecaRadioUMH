@@ -5,8 +5,12 @@ import os
 
 # 📌 Configurar la barra lateral
 st.sidebar.title("Consultar la Fonoteca 13:48")
-st.title ("Consultar la Fonoteca 06:06")
-st.sidebar.markdown(
+# st.title ("Consultar la Fonoteca 06:06")
+st.markdown(
+    """
+    <h1 style='color: #BD2830; text-align: center;'>Consultar la Fonoteca</h1>
+    """
+
     '''
     <div style="text-align: center; margin-top: 20px; margin-bottom: 20px;">
         <a href="https://radio.umh.es/" target="_blank">
