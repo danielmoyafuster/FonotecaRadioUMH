@@ -8,7 +8,9 @@ DB_PATH = "./db/FonotecaRadioUMH.db"
 
 # 🔹 Definir la función ANTES de llamarla
 def ejecutar_consulta(sql_query):
-    sql_query = "SELECT * FROM fonoteca_cd WHERE titulo_cd LIKE '%RESERVADA%';"
+    'sql_query = "SELECT * FROM fonoteca_cd WHERE titulo_cd LIKE '%RESERVADA%';"
+    sql_query="SELECT COUNT(*) FROM fonoteca_cd WHERE id_cd IS NULL OR id_cd = '';"
+    
     """ Ejecuta una consulta SQL y devuelve los resultados en un DataFrame """
     try:
         conn = sqlite3.connect(DB_PATH)
