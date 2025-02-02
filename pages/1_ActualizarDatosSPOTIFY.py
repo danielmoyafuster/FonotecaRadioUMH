@@ -141,8 +141,6 @@ def actualizar_id_cd_y_caratula(cd_id, nuevo_id_cd):
 
     return caratula_url
 
-# 📌 Interfaz de Streamlit
-st.sidebar.title("Actualizar datos desde SPOTIFY")
 
 # 🔹 Obtener la lista de CDs sin id_cd
 cds_sin_id = obtener_cds_sin_id_cd()
