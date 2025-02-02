@@ -2,16 +2,20 @@ import streamlit as st
 import sqlite3
 import pandas as pd
 import os
-
-# 📌 Configurar la barra lateral
-st.sidebar.title("Consultar la Fonoteca 13:48")
 # st.title ("Consultar la Fonoteca 06:06")
+import streamlit as st
+
 st.markdown(
     """
     <h1 style='color: #BD2830; text-align: center;'>Consultar la Fonoteca</h1>
-    """
+    """,
+    unsafe_allow_html=True
+)
+# 📌 Configurar la barra lateral
+st.sidebar.title("Consultar la Fonoteca")
 
-    '''
+st.markdown(
+     '''
     <div style="text-align: center; margin-top: 20px; margin-bottom: 20px;">
         <a href="https://radio.umh.es/" target="_blank">
             <img src="https://radio.umh.es/files/2023/07/FOTO-PERFIL-RADIO.png" 
