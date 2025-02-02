@@ -1,6 +1,68 @@
 import streamlit as st
 import sqlite3
-st.title ("Actualizar Datos desde SPOTIFY")
+#
+# configurar la estetica de la página
+#
+# 📌 Configurar la barra lateral
+st.sidebar.title("Actualizar datos desde SPOTIFY")
+st.markdown(
+    '''
+    <style>
+        /* 🔹 Quitar bordes de la tabla */
+        table {
+            border-collapse: collapse;
+            border: none;
+            background: transparent;
+            width: 100%;
+        }
+
+        /* 🔹 Quitar bordes y fondo de las celdas */
+        th, td {
+            border: none !important;
+            background: transparent !important;
+            padding: 10px;
+        }
+
+        /* 🔹 Ajustar tamaño y estilos de la imagen */
+        .logo-container img {
+            width: 180px;  /* Aumentamos un poco el tamaño */
+            border-radius: 10px;
+            transition: transform 0.2s;
+        }
+
+        /* 🔹 Efecto hover en la imagen */
+        .logo-container img:hover {
+            transform: scale(1.1); /* Hace que la imagen se agrande un poco al pasar el ratón */
+        }
+
+        /* 🔹 Centrar el título */
+        .title-container h1 {
+            color: #BD2830;
+            text-align: center;
+            font-size: 30px;
+        }
+    </style>
+
+    <table>
+        <tr>
+            <th class="logo-container">
+                <a href="https://radio.umh.es/" target="_blank">
+                    <img src="https://radio.umh.es/files/2023/07/FOTO-PERFIL-RADIO.png" 
+                         alt="Radio UMH">
+                </a>
+            </th>
+            <th class="title-container">
+                <h1>Consultar la Fonoteca</h1>
+            </th>
+        </tr>
+    </table>
+    ''',
+    unsafe_allow_html=True,
+)
+#
+# .-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+#
+
 
 # Ruta de la base de datos SQLite
 DB_PATH = "./db/FonotecaRadioUMH.db"
@@ -23,7 +85,7 @@ def actualizar_id_cd(cd_id, nuevo_id_cd):
     conn.close()
 
 # 🔹 Título de la aplicación
-st.markdown("<h2 style='color: #BD2830; text-align: center;'>Asignar manualmente ID de Spotify</h2>", unsafe_allow_html=True)
+# st.markdown("<h2 style='color: #BD2830; text-align: center;'>Asignar manualmente ID de Spotify</h2>", unsafe_allow_html=True)
 
 # 🔹 Obtener la lista de CDs sin id_cd
 cds_sin_id = obtener_cds_sin_id_cd()
