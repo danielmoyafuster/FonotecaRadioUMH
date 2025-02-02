@@ -64,8 +64,6 @@ st.markdown(
 #
 # .-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 #
-
-
 # 📌 Configurar credenciales de Spotify
 CLIENT_ID = "f539334f19094e47ae8df45cc373cce9"
 CLIENT_SECRET = "62f90ff98a2d4602968a488129aeae31"
@@ -76,8 +74,8 @@ DB_PATH = "./db/FonotecaRadioUMH.db"
 # 📌 URL de autenticación de Spotify
 AUTH_URL = "https://accounts.spotify.com/api/token"
 
+# 🔹 Función para obtener el token de autenticación de Spotify
 def obtener_token_spotify():
-    """ Obtiene el token de autenticación de Spotify """
     response = requests.post(AUTH_URL, {
         "grant_type": "client_credentials",
         "client_id": CLIENT_ID,
@@ -86,8 +84,8 @@ def obtener_token_spotify():
     data = response.json()
     return data.get("access_token")
 
+# 🔹 Función para obtener canciones de un álbum en Spotify
 def obtener_canciones_album(id_cd_spotify, token):
-    """ Obtiene todas las canciones de un álbum en Spotify """
     url = f"https://api.spotify.com/v1/albums/{id_cd_spotify}/tracks?limit=50"
     headers = {"Authorization": f"Bearer {token}"}
 
@@ -110,30 +108,12 @@ def obtener_canciones_album(id_cd_spotify, token):
     
     return canciones
 
-def obtener_cds_pendientes():
-    """ Obtiene el número de CDs que aún no tienen canciones en la base de datos """
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-
-    cursor.execute("""
-        SELECT COUNT(*) 
-        FROM fonoteca_cd fc
-        LEFT JOIN fonoteca_canciones fca ON fc.id = fca.id
-        WHERE fc.id_cd IS NOT NULL AND fc.id_cd != '' 
-        GROUP BY fc.id 
-        HAVING COUNT(fca.id) = 0;
-    """)
-    
-    cds_pendientes = len(cursor.fetchall())
-    conn.close()
-    
-    return cds_pendientes
-
+# 🔹 Función para importar canciones y actualizar la base de datos
 def importar_canciones():
-    """ Importa las canciones desde Spotify para los CDs pendientes """
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
 
+    # Obtener SOLO los CDs con id_cd que aún no tienen canciones
     cursor.execute("""
         SELECT fc.id, fc.id_cd 
         FROM fonoteca_cd fc
@@ -149,7 +129,10 @@ def importar_canciones():
         st.success("✅ Todos los CDs ya tienen canciones archivadas. No hay nada que importar.")
         return
 
+    # Obtener token de Spotify
     token = obtener_token_spotify()
+
+    # Barra de progreso en Streamlit
     progress_bar = st.progress(0)
     total_cds = len(cds)
 
@@ -167,8 +150,11 @@ def importar_canciones():
                 """, (id_cd_local, cancion["disc_number"], cancion["interprete"], cancion["track_number"], cancion["cancion"], cancion["cancion_url"]))
 
             conn.commit()
+
+            # Actualizar la barra de progreso en Streamlit
             progress_bar.progress((index + 1) / total_cds)
-            time.sleep(0.5)
+
+            time.sleep(0.5)  # Reducimos la pausa para acelerar el proceso
 
         st.success("✅ Proceso finalizado: Todas las canciones han sido archivadas correctamente.")
 
@@ -178,13 +164,9 @@ def importar_canciones():
     finally:
         conn.close()
 
-# 📌 Interfaz en Streamlit
+# 🔹 Interfaz en Streamlit
 st.markdown("<h2 style='color: #BD2830; text-align: center;'>Actualizar Canciones desde Spotify</h2>", unsafe_allow_html=True)
 st.write("Este módulo buscará los CDs en la base de datos que aún no tienen canciones importadas desde Spotify y procederá a archivarlas.")
-
-# 📌 Mostrar el número de CDs pendientes antes del botón
-cds_pendientes = obtener_cds_pendientes()
-st.markdown(f"### 🎵 CD's pendientes de actualizar: **{cds_pendientes}**")
 
 if st.button("Iniciar Importación"):
     importar_canciones()
