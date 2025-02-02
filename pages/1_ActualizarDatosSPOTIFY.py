@@ -165,6 +165,6 @@ else:
             else:
                 st.warning("⚠️ No se encontró carátula para este CD en Spotify.")
 
-            st.warning("📢 Ahora debes ejecutar **8_ActualizarDesdeSpotify.py** para sincronizar las canciones.")
+            st.warning("📢 Ahora puedes ejecutar ** Añadir Canciones Spotify**  para sincronizar las canciones.")
         else:
             st.error("⚠️ Debes ingresar un `id_cd` antes de actualizar.")
