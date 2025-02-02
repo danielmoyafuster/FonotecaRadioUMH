@@ -1,7 +1,7 @@
 import streamlit as st
 import sqlite3
 import requests
-#
+# -------------------------------------
 # configurar la estetica de la página
 #
 # 📌 Configurar la barra lateral
