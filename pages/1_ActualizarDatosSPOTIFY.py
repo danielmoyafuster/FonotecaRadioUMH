@@ -137,6 +137,7 @@ def actualizar_id_cd_y_caratula(cd_id, nuevo_id_cd):
         st.error(f"❌ Error al actualizar la base de datos: {e}")
 
     finally:
+        conn.commit()
         conn.close()
 
     return caratula_url
