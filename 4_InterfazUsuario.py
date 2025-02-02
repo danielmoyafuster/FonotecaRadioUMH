@@ -5,7 +5,9 @@ import os
 # st.title ("Consultar la Fonoteca 06:06")
 import streamlit as st
 
-
+#
+# configurar la estetica de la página
+#
 # 📌 Configurar la barra lateral
 st.sidebar.title("Consultar la Fonoteca")
 st.markdown(
@@ -62,6 +64,11 @@ st.markdown(
     ''',
     unsafe_allow_html=True,
 )
+#
+# .-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+#
+
+
 # Ruta de la base de datos SQLite
 DB_PATH = "./db/FonotecaRadioUMH.db"
 #
