@@ -4,7 +4,8 @@ import pandas as pd
 import os
 
 # 📌 Configurar la barra lateral
-st.sidebar.title("Consultar la Fonoteca")
+st.sidebar.title("Consultar la Fonoteca 13:48")
+st.title ("Consultar la Fonoteca 06:06")
 st.sidebar.markdown(
     '''
     <div style="text-align: center; margin-top: 20px; margin-bottom: 20px;">
@@ -19,136 +20,121 @@ st.sidebar.markdown(
     ''',
     unsafe_allow_html=True,
 )
+# Ruta de la base de datos SQLite
+DB_PATH = "./db/FonotecaRadioUMH.db"
+#
+# -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.--.
+#
 
-# 📌 Configurar título de la app
-st.title("Fonoteca Radio UMH")
 
-# 📌 Conectar a la base de datos SQLite
-db_path = os.path.join(os.getcwd(), "db", "FonotecaRadioUMH.db")
-conn = sqlite3.connect(db_path)
+# 🔹 Función para realizar búsquedas en la base de datos
+def buscar_canciones(criterio, tipo_busqueda):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
 
-# 📌 Desactivar modo WAL para evitar problemas en la conexión
-conn.execute("PRAGMA journal_mode=DELETE;")
-conn.commit()
+    # ✅ Relación corregida con `id`
+    query = """
+        SELECT 
+            fc.carátula_cd AS CARÁTULA,
+            fc.numero_cd AS NÚM,   
+            fc.autor AS AUTOR,
+            fc.titulo_cd AS TITULO,
+            fca.interprete_cancion AS INTERPRETE,
+            fca.disc_number AS CD,  
+            fca.track_number AS PISTA,
+            fca.cancion AS CANCION,
+            fca.cancion_url AS URL
+        FROM fonoteca_canciones fca
+        JOIN fonoteca_cd fc ON fc.id = fca.id  -- ✅ Relación corregida
+        WHERE LOWER({}) LIKE LOWER(?);
+    """
 
-# 📌 Campos permitidos para la búsqueda (ahora la búsqueda por "autor" se hace en `fonoteca_canciones`)
-campos_permitidos = ["numero_cd", "autor", "titulo_cd", "cancion"]
+    campo_busqueda = {
+        "Canción": "fca.cancion",
+        "Intérprete": "fca.interprete_cancion",
+        "CD": "fc.titulo_cd"
+    }.get(tipo_busqueda, None)
 
-# 📌 Seleccionar campo de búsqueda
-campo_busqueda = st.selectbox("Selecciona un campo para buscar:", campos_permitidos)
+    if campo_busqueda is None:
+        st.error("Error interno: Tipo de búsqueda no válido.")
+        return pd.DataFrame()
 
-# 📌 Entrada de búsqueda
-busqueda = st.text_input("Introduce el término de búsqueda:")
+    cursor.execute(query.format(campo_busqueda), ('%' + criterio.lower() + '%',))
+    resultados = cursor.fetchall()
 
-# 📌 Inicializar variable para CDs encontrados
-cds_encontrados = []
+    conn.close()
 
-# 📌 Si hay una búsqueda activa
-if busqueda:
-    if campo_busqueda == "cancion":
-        # 📌 Buscar en `fonoteca_canciones` por título de canción y obtener datos del CD desde `fonoteca_cd`
-        query_cds = '''
-            SELECT DISTINCT c.numero_cd, c.titulo_cd, c.autor, c.carátula_cd
-            FROM fonoteca_cd c
-            JOIN fonoteca_canciones s ON c.numero_cd = s.numero_cd
-            WHERE s.cancion LIKE ?
-            ORDER BY c.titulo_cd
-        '''
-    elif campo_busqueda == "autor":
-        # 📌 Buscar en `fonoteca_canciones` por el intérprete de la canción y obtener datos del CD
-        query_cds = '''
-            SELECT DISTINCT c.numero_cd, c.titulo_cd, c.autor, c.carátula_cd
-            FROM fonoteca_cd c
-            JOIN fonoteca_canciones s ON c.numero_cd = s.numero_cd
-            WHERE s.interprete_cancion LIKE ?
-            ORDER BY c.titulo_cd
-        '''
+    if not resultados:
+        return pd.DataFrame()
+
+    # 🔹 Convertir los resultados en un DataFrame con nombres correctos
+    df = pd.DataFrame(resultados, columns=["CARÁTULA", "NÚM", "AUTOR", "TITULO", "INTERPRETE", "CD", "PISTA", "CANCION", "URL"])
+
+    # 🔹 Convertir la columna "CANCION" en un enlace activo si hay URL
+    df["CANCION"] = df.apply(lambda row: f'<a href="{row["URL"]}" target="_blank">{row["CANCION"]}</a>' if row["URL"] else row["CANCION"], axis=1)
+
+    return df.drop(columns=["URL"])  # Eliminamos la columna URL para no mostrarla directamente
+
+# 🔹 Agregar estilos CSS para mejorar la visualización
+st.markdown("""
+    <style>
+        /* Ajustar la tabla para que ocupe más espacio */
+        .main .block-container {
+            max-width: 100%;
+            padding-top: 20px;
+        }
+
+        /* Estilizar la tabla con alineación a la izquierda */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+            text-align: left;
+            padding: 10px;
+            font-size: 16px;
+        }
+        td {
+            padding: 10px;
+            font-size: 14px;
+        }
+
+        /* Ajustar la columna "CARÁTULA" para que las imágenes sean visibles */
+        th:nth-child(1), td:nth-child(1) {
+            width: 120px;
+            text-align: center;
+        }
+
+        /* Ajustar la columna "CANCION" para que sea más ancha */
+        th:nth-child(8), td:nth-child(8) {
+            min-width: 250px;
+        }
+    </style>
+""", unsafe_allow_html=True)
+
+# 🔹 Selección de tipo de búsqueda
+opcion = st.radio("Buscar por:", ["Canción", "Intérprete", "CD"])
+criterio = st.text_input(f"Introduce el nombre de la {opcion.lower()}:")
+
+# 🔹 Botón de búsqueda
+if st.button("Buscar"):
+    if criterio:
+        resultados = buscar_canciones(criterio, opcion)
+
+        if not resultados.empty:
+            st.write(f"### Resultados encontrados ({len(resultados)}):")
+
+            # 🔹 Convertir la columna "CARÁTULA" en una imagen clickeable
+            resultados["CARÁTULA"] = resultados["CARÁTULA"].apply(
+                lambda url: f'<a href="{url}" target="_blank"><img src="{url}" width="80" style="cursor: zoom-in;"></a>' if pd.notna(url) else "No disponible"
+            )
+
+            # 🔹 Mostrar la tabla con imágenes y enlaces clickeables
+            st.markdown(resultados.to_html(escape=False, index=False), unsafe_allow_html=True)
+
+        else:
+            st.warning("No se encontraron resultados.")
     else:
-        # 📌 Buscar en `fonoteca_cd` para las otras opciones
-        query_cds = f'''
-            SELECT DISTINCT numero_cd, titulo_cd, autor, carátula_cd
-            FROM fonoteca_cd
-            WHERE {campo_busqueda} LIKE ?
-            ORDER BY titulo_cd
-        '''
-    
-    cds_df = pd.read_sql_query(query_cds, conn, params=(f"%{busqueda}%",))
-
-    # 📌 Convertir los resultados a lista con "Número CD - Título CD - Autor"
-    cds_encontrados = [f"{row['numero_cd']} - {row['titulo_cd']} - {row['autor']}" for _, row in cds_df.iterrows()]
-
-    # 📌 Contador de resultados
-    num_cds_encontrados = len(cds_encontrados)
-
-    # 📌 Mostrar mensaje si no se encuentra ningún CD
-    if not cds_encontrados:
-        st.error(f"⚠️ No se encontraron resultados para '{busqueda}' en el campo '{campo_busqueda}'.")
-        st.warning("🔍 Intenta con otro término de búsqueda o revisa la ortografía.")
-
-# 📌 Mostrar el combo si hay CDs encontrados
-if cds_encontrados:
-    cd_seleccionado = st.selectbox(f"Selecciona un CD ({num_cds_encontrados} encontrados):", cds_encontrados)
-
-    if cd_seleccionado:
-        # 📌 Extraer número, título y autor del CD seleccionado
-        partes = cd_seleccionado.split(' - ')
-        numero_cd_real, titulo_cd_real, autor_cd_real = partes[0], partes[1], partes[2]
-
-        # 📌 Obtener la carátula del CD desde la base de datos
-        query_imagen = 'SELECT carátula_cd FROM fonoteca_cd WHERE numero_cd = ? LIMIT 1'
-        imagen_df = pd.read_sql_query(query_imagen, conn, params=(numero_cd_real,))
-
-        if not imagen_df.empty and pd.notna(imagen_df['carátula_cd'].iloc[0]) and imagen_df['carátula_cd'].iloc[0] != 'No disponible':
-            st.image(imagen_df['carátula_cd'].iloc[0], caption=f"Carátula de {titulo_cd_real}", width=200)
-        else:
-            st.image("https://via.placeholder.com/200?text=Sin+Car%C3%A1tula", caption="Carátula no disponible", width=200)
-
-        # 📌 Consultar las canciones del CD
-        if campo_busqueda == "cancion":
-            query_canciones = '''
-                SELECT numero_cd, interprete_cancion, indice_cancion, cancion, cancion_url
-                FROM fonoteca_canciones
-                WHERE numero_cd = ? AND cancion LIKE ?
-                ORDER BY indice_cancion
-            '''
-            canciones_df = pd.read_sql_query(query_canciones, conn, params=(numero_cd_real, f"%{busqueda}%"))
-        elif campo_busqueda == "autor":
-            query_canciones = '''
-                SELECT numero_cd, interprete_cancion, indice_cancion, cancion, cancion_url
-                FROM fonoteca_canciones
-                WHERE numero_cd = ? AND interprete_cancion LIKE ?
-                ORDER BY indice_cancion
-            '''
-            canciones_df = pd.read_sql_query(query_canciones, conn, params=(numero_cd_real, f"%{busqueda}%"))
-        else:
-            query_canciones = '''
-                SELECT numero_cd, interprete_cancion, indice_cancion, cancion, cancion_url
-                FROM fonoteca_canciones
-                WHERE numero_cd = ?
-                ORDER BY indice_cancion
-            '''
-            canciones_df = pd.read_sql_query(query_canciones, conn, params=(numero_cd_real,))
-
-        if not canciones_df.empty:
-            st.write('Lista de Canciones:')
-
-            # 📌 Convertir los títulos en enlaces clicables
-            def make_clickable(val, url):
-                if pd.notna(url) and url != "No disponible":
-                    return f'<a href="{url}" target="_blank">{val}</a>'
-                return val
-
-            canciones_df["cancion"] = canciones_df.apply(lambda row: make_clickable(row["cancion"], row["cancion_url"]), axis=1)
-
-            # 📌 Eliminar la columna URL, ya que está integrada en el título
-            canciones_df.drop(columns=["cancion_url"], inplace=True)
-
-            # 📌 Renombrar columnas con los nombres correctos en MAYÚSCULAS
-            canciones_df.columns = ["NÚMERO CD", "INTÉRPRETE", "ÍNDICE", "CANCIÓN"]
-
-            # 📌 Mostrar la tabla
-            st.write(canciones_df.to_html(escape=False, index=False), unsafe_allow_html=True)
-
-# 📌 Guardar cambios en la base de datos
-conn.commit()
-conn.close()
+        st.error("Por favor, introduce un criterio de búsqueda.")
