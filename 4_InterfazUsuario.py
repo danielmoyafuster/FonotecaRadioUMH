@@ -8,26 +8,57 @@ import streamlit as st
 
 # 📌 Configurar la barra lateral
 st.sidebar.title("Consultar la Fonoteca")
-
 st.markdown(
-     '''
-     <table border=0>
+    '''
+    <style>
+        /* 🔹 Quitar bordes de la tabla */
+        table {
+            border-collapse: collapse;
+            border: none;
+            background: transparent;
+            width: 100%;
+        }
+
+        /* 🔹 Quitar bordes y fondo de las celdas */
+        th, td {
+            border: none !important;
+            background: transparent !important;
+            padding: 10px;
+        }
+
+        /* 🔹 Ajustar tamaño y estilos de la imagen */
+        .logo-container img {
+            width: 180px;  /* Aumentamos un poco el tamaño */
+            border-radius: 10px;
+            transition: transform 0.2s;
+        }
+
+        /* 🔹 Efecto hover en la imagen */
+        .logo-container img:hover {
+            transform: scale(1.1); /* Hace que la imagen se agrande un poco al pasar el ratón */
+        }
+
+        /* 🔹 Centrar el título */
+        .title-container h1 {
+            color: #BD2830;
+            text-align: center;
+            font-size: 30px;
+        }
+    </style>
+
+    <table>
         <tr>
-            <th>
-                <div style="text-align: center; margin-top: 20px; margin-bottom: 20px;">
-                    <a href="https://radio.umh.es/" target="_blank">
-                        <img src="https://radio.umh.es/files/2023/07/FOTO-PERFIL-RADIO.png" 
-                        alt="Radio UMH" 
-                        style="width: 150px; border-radius: 10px; margin-bottom: 10px;">
-                    </a>
-                </div>
+            <th class="logo-container">
+                <a href="https://radio.umh.es/" target="_blank">
+                    <img src="https://radio.umh.es/files/2023/07/FOTO-PERFIL-RADIO.png" 
+                         alt="Radio UMH">
+                </a>
             </th>
-            <th>
-                <h1 style="color: #BD2830; text-align: center;">Consultar la Fonoteca</h1>
+            <th class="title-container">
+                <h1>Consultar la Fonoteca</h1>
             </th>
         </tr>
     </table>
-
     ''',
     unsafe_allow_html=True,
 )
