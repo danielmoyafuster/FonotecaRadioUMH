@@ -93,8 +93,10 @@ def obtener_caratula_spotify(id_cd_spotify, token):
     response = requests.get(url, headers=headers)
     data = response.json()
 
-    # 📀 Extraer la URL de la carátula si existe
-    return data["images"][0]["url"] if "images" in data and data["images"] else None
+    if "images" in data and data["images"]:
+        return data["images"][0]["url"]
+    else:
+        return None  # Si no hay imagen, devuelve None
 
 def obtener_cds_sin_id_cd():
     """ Obtiene los CDs que no tienen un id_cd en Spotify """
@@ -110,21 +112,33 @@ def actualizar_id_cd_y_caratula(cd_id, nuevo_id_cd):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
 
-    # 🔹 Actualizar id_cd
-    cursor.execute("UPDATE fonoteca_cd SET id_cd = ? WHERE id = ?;", (nuevo_id_cd, cd_id))
-    conn.commit()
-
-    # 🔹 Obtener token de Spotify
-    token = obtener_token_spotify()
-
-    # 🔹 Obtener la carátula del CD desde Spotify
-    caratula_url = obtener_caratula_spotify(nuevo_id_cd, token)
-
-    if caratula_url:
-        cursor.execute("UPDATE fonoteca_cd SET carátula_cd = ? WHERE id = ?;", (caratula_url, cd_id))
+    try:
+        # 🔹 Actualizar id_cd
+        cursor.execute("UPDATE fonoteca_cd SET id_cd = ? WHERE id = ?;", (nuevo_id_cd, cd_id))
         conn.commit()
 
-    conn.close()
+        # 🔹 Obtener token de Spotify
+        token = obtener_token_spotify()
+
+        # 🔹 Obtener la carátula del CD desde Spotify
+        caratula_url = obtener_caratula_spotify(nuevo_id_cd, token)
+
+        if caratula_url:
+            cursor.execute("UPDATE fonoteca_cd SET carátula_cd = ? WHERE id = ?;", (caratula_url, cd_id))
+            conn.commit()
+            st.write(f"📀 Carátula guardada en la base de datos: {caratula_url}")  # 🔹 Debugging
+
+        # 🔹 Verificación de que se guardó correctamente
+        cursor.execute("SELECT id_cd, carátula_cd FROM fonoteca_cd WHERE id = ?;", (cd_id,))
+        resultado = cursor.fetchone()
+        st.write(f"✅ Verificación en base de datos: ID_CD={resultado[0]}, Carátula={resultado[1]}")
+
+    except sqlite3.Error as e:
+        st.error(f"❌ Error al actualizar la base de datos: {e}")
+
+    finally:
+        conn.close()
+
     return caratula_url
 
 # 📌 Interfaz de Streamlit
