@@ -5,26 +5,29 @@ import os
 # st.title ("Consultar la Fonoteca 06:06")
 import streamlit as st
 
-st.markdown(
-    """
-    <h1 style='color: #BD2830; text-align: center;'>Consultar la Fonoteca</h1>
-    """,
-    unsafe_allow_html=True
-)
+
 # 📌 Configurar la barra lateral
 st.sidebar.title("Consultar la Fonoteca")
 
 st.markdown(
      '''
-    <div style="text-align: center; margin-top: 20px; margin-bottom: 20px;">
-        <a href="https://radio.umh.es/" target="_blank">
-            <img src="https://radio.umh.es/files/2023/07/FOTO-PERFIL-RADIO.png" 
-                 alt="Radio UMH" 
-                 style="width: 150px; border-radius: 10px; margin-bottom: 10px;">
-        </a>
-        <p style="font-size: 16px; font-weight: bold; color: #333;">Gestión de la Fonoteca</p>
-        <hr style="border: none; border-top: 1px solid #ccc; margin: 10px 0;">
-    </div>
+     <table border=0>
+        <tr>
+            <th>
+                <div style="text-align: center; margin-top: 20px; margin-bottom: 20px;">
+                    <a href="https://radio.umh.es/" target="_blank">
+                        <img src="https://radio.umh.es/files/2023/07/FOTO-PERFIL-RADIO.png" 
+                        alt="Radio UMH" 
+                        style="width: 150px; border-radius: 10px; margin-bottom: 10px;">
+                    </a>
+                </div>
+            </th>
+            <th>
+                <h1 style="color: #BD2830; text-align: center;">Consultar la Fonoteca</h1>
+            </th>
+        </tr>
+    </table>
+
     ''',
     unsafe_allow_html=True,
 )
