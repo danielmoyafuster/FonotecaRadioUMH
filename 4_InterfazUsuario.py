@@ -2,14 +2,18 @@ import streamlit as st
 import sqlite3
 import pandas as pd
 import os
-# st.title ("Consultar la Fonoteca 06:06")
-import streamlit as st
+import base64
+import unicodedata
+import sys
 
+
+# 🔹 Asegurar que Python use UTF-8
+sys.stdout.reconfigure(encoding='utf-8')
 #
 # configurar la estetica de la página
 #
 # 📌 Configurar la barra lateral
-st.sidebar.title("Consultar la Fonoteca")
+# st.sidebar.title("Consultar la Fonoteca")
 st.markdown(
     '''
     <style>
@@ -67,35 +71,60 @@ st.markdown(
 #
 # .-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 #
+import streamlit as st
+import sqlite3
+import pandas as pd
+import os
+import base64
+import unicodedata
+import sys
 
+# 🔹 Asegurar que Python use UTF-8
+sys.stdout.reconfigure(encoding='utf-8')
 
-# Ruta de la base de datos SQLite
+# 📌 Ruta de la base de datos SQLite y de las imágenes
 DB_PATH = "./db/FonotecaRadioUMH.db"
-#
-# -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.--.
-#
+IMAGES_DIR = "./imagenes_cd/"
 
+# 📌 Función para normalizar texto (elimina acentos y convierte a minúsculas)
+def normalizar_texto(texto):
+    if texto:
+        texto = texto.lower()
+        texto = ''.join(c for c in unicodedata.normalize('NFKC', texto))
+    return texto
 
-# 🔹 Función para realizar búsquedas en la base de datos
+# 📌 Función para convertir una imagen local a base64
+def convertir_imagen_a_base64(ruta_imagen):
+    if os.path.exists(ruta_imagen):
+        with open(ruta_imagen, "rb") as img_file:
+            return base64.b64encode(img_file.read()).decode("utf-8")
+    return None
+
+# 📌 Función para realizar búsquedas en la base de datos
 def buscar_canciones(criterio, tipo_busqueda):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
 
-    # ✅ Relación corregida con `id`
+    # 🔹 Normalizar el criterio de búsqueda
+    criterio_normalizado = normalizar_texto(criterio)
+
+    # 🔹 Consulta SQL con agrupación por `titulo_cd` y ordenación por `disc_number` y `track_number`
     query = """
         SELECT 
-            fc.carátula_cd AS CARÁTULA,
+            COALESCE(fc.carátula_cd, '') AS CARÁTULA,
             fc.numero_cd AS NÚM,   
-            fc.autor AS AUTOR,
             fc.titulo_cd AS TITULO,
-            fca.interprete_cancion AS INTERPRETE,
-            fca.disc_number AS CD,  
-            fca.track_number AS PISTA,
-            fca.cancion AS CANCION,
-            fca.cancion_url AS URL
-        FROM fonoteca_canciones fca
-        JOIN fonoteca_cd fc ON fc.id = fca.id  -- ✅ Relación corregida
-        WHERE LOWER({}) LIKE LOWER(?);
+            fc.autor AS AUTOR,
+            COALESCE(fca.interprete_cancion, 'N/A') AS INTERPRETE,
+            COALESCE(fca.disc_number, 0) AS CD,  
+            COALESCE(fca.track_number, 0) AS PISTA,
+            COALESCE(fca.cancion, 'SIN CANCIONES REGISTRADAS') AS CANCION,
+            COALESCE(fca.cancion_url, '') AS URL
+        FROM fonoteca_cd fc
+        LEFT JOIN fonoteca_canciones fca ON fc.id = fca.id
+        WHERE {} LIKE ? COLLATE NOCASE
+        GROUP BY fc.titulo_cd, fca.disc_number, fca.track_number
+        ORDER BY fc.titulo_cd ASC, fca.disc_number ASC, fca.track_number ASC;
     """
 
     campo_busqueda = {
@@ -105,63 +134,21 @@ def buscar_canciones(criterio, tipo_busqueda):
     }.get(tipo_busqueda, None)
 
     if campo_busqueda is None:
-        st.error("Error interno: Tipo de búsqueda no válido.")
         return pd.DataFrame()
 
-    cursor.execute(query.format(campo_busqueda), ('%' + criterio.lower() + '%',))
+    cursor.execute(query.format(campo_busqueda), ('%' + criterio_normalizado + '%',))
     resultados = cursor.fetchall()
-
     conn.close()
 
     if not resultados:
         return pd.DataFrame()
 
-    # 🔹 Convertir los resultados en un DataFrame con nombres correctos
-    df = pd.DataFrame(resultados, columns=["CARÁTULA", "NÚM", "AUTOR", "TITULO", "INTERPRETE", "CD", "PISTA", "CANCION", "URL"])
+    # 🔹 Convertir los resultados en un DataFrame
+    df = pd.DataFrame(resultados, columns=["CARÁTULA", "NÚM", "TITULO", "AUTOR", "INTERPRETE", "CD", "PISTA", "CANCION", "URL"])
+    return df
 
-    # 🔹 Convertir la columna "CANCION" en un enlace activo si hay URL
-    df["CANCION"] = df.apply(lambda row: f'<a href="{row["URL"]}" target="_blank">{row["CANCION"]}</a>' if row["URL"] else row["CANCION"], axis=1)
-
-    return df.drop(columns=["URL"])  # Eliminamos la columna URL para no mostrarla directamente
-
-# 🔹 Agregar estilos CSS para mejorar la visualización
-st.markdown("""
-    <style>
-        /* Ajustar la tabla para que ocupe más espacio */
-        .main .block-container {
-            max-width: 100%;
-            padding-top: 20px;
-        }
-
-        /* Estilizar la tabla con alineación a la izquierda */
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            text-align: left;
-        }
-        th {
-            background-color: #f2f2f2;
-            text-align: left;
-            padding: 10px;
-            font-size: 16px;
-        }
-        td {
-            padding: 10px;
-            font-size: 14px;
-        }
-
-        /* Ajustar la columna "CARÁTULA" para que las imágenes sean visibles */
-        th:nth-child(1), td:nth-child(1) {
-            width: 120px;
-            text-align: center;
-        }
-
-        /* Ajustar la columna "CANCION" para que sea más ancha */
-        th:nth-child(8), td:nth-child(8) {
-            min-width: 250px;
-        }
-    </style>
-""", unsafe_allow_html=True)
+# 📌 Interfaz de Streamlit
+st.markdown("<h2 style='color: #BD2830; text-align: center;'>Consultar la Fonoteca</h2>", unsafe_allow_html=True)
 
 # 🔹 Selección de tipo de búsqueda
 opcion = st.radio("Buscar por:", ["Canción", "Intérprete", "CD"])
@@ -175,14 +162,35 @@ if st.button("Buscar"):
         if not resultados.empty:
             st.write(f"### Resultados encontrados ({len(resultados)}):")
 
-            # 🔹 Convertir la columna "CARÁTULA" en una imagen clickeable
-            resultados["CARÁTULA"] = resultados["CARÁTULA"].apply(
-                lambda url: f'<a href="{url}" target="_blank"><img src="{url}" width="80" style="cursor: zoom-in;"></a>' if pd.notna(url) else "No disponible"
-            )
+            table_data = []
 
-            # 🔹 Mostrar la tabla con imágenes y enlaces clickeables
-            st.markdown(resultados.to_html(escape=False, index=False), unsafe_allow_html=True)
+            for _, row in resultados.iterrows():
+                caratula = row["CARÁTULA"]
+                ruta_imagen = caratula.strip()  
 
+                if ruta_imagen.startswith("http"):  # Si es una URL, mostrar directamente
+                    caratula_display = f'<img src="{ruta_imagen}" width="80">'
+                else:  # Si es una imagen local, verificar existencia
+                    if os.path.exists(ruta_imagen):  
+                        base64_str = convertir_imagen_a_base64(ruta_imagen)
+                        caratula_display = f'<img src="data:image/jpeg;base64,{base64_str}" width="80">' if base64_str else "⚠️ Error al cargar la imagen"
+                    else:
+                        caratula_display = "❌ Imagen no encontrada"
+
+                # 🔹 Si la URL está vacía o es NULL, solo mostramos el título sin enlace
+                cancion_display = row["CANCION"]
+                if row["URL"].strip():  
+                    cancion_display = f'<a href="{row["URL"]}" target="_blank">{cancion_display}</a>'
+
+                # 🔹 Agregar a la tabla
+                table_data.append([
+                    caratula_display, row["NÚM"], row["TITULO"], row["AUTOR"], 
+                    row["INTERPRETE"], row["CD"], row["PISTA"], cancion_display
+                ])
+
+            # 🔹 Convertir la tabla en un DataFrame para mostrarla en HTML
+            table_df = pd.DataFrame(table_data, columns=["CARÁTULA", "NÚM", "TITULO", "AUTOR", "INTERPRETE", "CD", "PISTA", "CANCION"])
+            st.markdown(table_df.to_html(escape=False, index=False), unsafe_allow_html=True)
         else:
             st.warning("No se encontraron resultados.")
     else:
