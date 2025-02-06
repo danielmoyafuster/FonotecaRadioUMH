@@ -1,139 +1,160 @@
-import requests
-import re
-import sqlite3
 
-# 📌 Ruta de la base de datos SQLite
-DB_PATH = "./db/FonotecaRadioUMH.db"
+# .-.-.-.-.-.-..-.-.-.-.-.-.-.-.-.-.-.--.-.-.-.-.-.-.-.-.-.-.-.-.-..-.-.-.-.-.-.-.-.-.-.-.--.-.-.-.-.-.-.-.-.-.-.-.-.-.
+# DgsCanciones.py    V 2.0 06-02-2025 14:45
+# extraer canciones de la api de Discogs
+# datos de entrada :
+# Introduce el ID del lanzamiento de Discogs: 1505060
+# tomar el código de la url justo a continuación de release:
+# p.ej. : https://www.discogs.com/es/release/1505060-Various-Superventas-2007?srsltid=AfmBOorImE_n8qFBjOcqgf3FKwNonlphMB5t5u8-YdpEh_tQhtOzut89
+#  aquí sería 1505060
+#
+# Introduce el ID del disco en la tabla fonoteca_cd: [el id del disco en fonoteca_cd
+#
+# .-.-.-.-.-.-..-.-.-.-.-.-.-.-.-.-.-.--.-.-.-.-.-.-.-.-.-.-.-.-.-..-.-.-.-.-.-.-.-.-.-.-.--.-.-.-.-.-.-.-.-.-.-.-.-.-.
+import sqlite3
+import requests
+import re  # Para procesar números de disco correctamente
+import os  # Para manejar archivos y rutas
 
 class DiscogsExtractor:
-    BASE_URL = "https://api.discogs.com/releases/"
-
-    def __init__(self, release_id):
+    def __init__(self, release_id, token, db_cd_id):
+        """
+        Inicializa el extractor con el ID del lanzamiento de Discogs,
+        el token de autenticación y el ID del disco en la base de datos.
+        """
         self.release_id = release_id
-        self.data = None
+        self.token = token
+        self.db_cd_id = db_cd_id
+        self.release_data = self.get_release_data()
 
-    def fetch_data(self):
-        """Obtiene los datos del lanzamiento desde la API de Discogs"""
-        url = f"{self.BASE_URL}{self.release_id}"
-        response = requests.get(url)
+    def get_release_data(self):
+        """
+        Obtiene los datos del lanzamiento desde la API de Discogs.
+        """
+        url = f"https://api.discogs.com/releases/{self.release_id}"
+        headers = {"Authorization": f"Discogs token={self.token}"}
         
+        response = requests.get(url, headers=headers)
         if response.status_code == 200:
-            self.data = response.json()
+            return response.json()
         else:
-            raise Exception(f"Error al obtener datos de Discogs: {response.status_code}")
-
-    def get_album_title(self):
-        """Obtiene el nombre del disco"""
-        if not self.data:
-            self.fetch_data()
-        return self.data.get("title", "Título desconocido")
-
-    def get_album_cover_url(self):
-        """Obtiene la URL de la carátula del disco"""
-        if not self.data:
-            self.fetch_data()
-        
-        images = self.data.get("images", [])
-        if images:
-            return images[0].get("uri", None)  # URL de la carátula principal
-        return None  # No hay carátula disponible
-
-    def parse_disc_number(self, position):
-        """Extrae el número de disco desde la posición (ej: '2-01' → disco 2)"""
-        if position:
-            match = re.match(r"(\d+)-\d+", position)  # Buscar patrón "2-01"
-            if match:
-                return int(match.group(1))  # Devuelve el número antes del guion
-        return 1  # Si no hay información, asumimos que es el disco 1
+            print(f"Error al obtener datos de Discogs: {response.status_code}")
+            return None
 
     def extract_tracks(self):
-        """Extrae la información de cada pista: disc_number, track_number, interprete_cancion, cancion"""
-        if not self.data:
-            self.fetch_data()
+        """
+        Extrae las pistas del lanzamiento de Discogs y limpia los datos.
+        Si una pista no tiene intérprete, usa el artista principal del álbum.
+        """
+        if not self.release_data:
+            print("⚠️ No se pudieron obtener los datos del lanzamiento.")
+            return []
 
-        tracklist = self.data.get("tracklist", [])
-        extracted_tracks = []
+        # 🔹 Obtener el artista principal del álbum
+        album_artist = self.release_data.get("artists", [{}])[0].get("name", "Desconocido")
+    
+        tracks = []
 
-        for track in tracklist:
-            position = track.get("position", "")  # Posición en formato "1-01", "2-02", etc.
-            disc_number = self.parse_disc_number(position)
-            track_number = int(position.split("-")[-1]) if "-" in position else int(position) if position.isdigit() else None
-            cancion = track.get("title", "Desconocido")
+        for track in self.release_data.get('tracklist', []):
+            position = track.get('position', '').strip()
+            title = track.get('title', '').strip()
+            artists = track.get('artists', [])
 
-            # Obtener el intérprete principal
-            if "artists" in track and track["artists"]:
-                interprete_cancion = ", ".join([artist["name"] for artist in track["artists"]])
-            else:
-                interprete_cancion = "Desconocido"
+            # ✅ Si la pista no tiene artistas, usar el artista del álbum
+            interprete = ", ".join([artist['name'] for artist in artists]) if artists else album_artist
 
-            extracted_tracks.append({
+            # 🔹 **LIMPIEZA DEL INTERPRETE**
+            interprete = re.sub(r'\*$', '', interprete).strip()  # Eliminar "*" al final
+            interprete = re.sub(r'\s*\(\d+\)', '', interprete).strip()  # Eliminar paréntesis con números
+            
+            # Extraer número de disco y pista
+            disc_number, track_number = self.get_disc_and_track_number(position)
+
+            # ❌ Ignorar DVDs
+            if disc_number is None or track_number is None:
+                continue  
+
+            tracks.append({
                 "disc_number": disc_number,
-                "track_number": track_number if track_number is not None else len(extracted_tracks) + 1,
-                "interprete_cancion": interprete_cancion,
-                "cancion": cancion
+                "track_number": track_number,
+                "interprete": interprete,
+                "title": title
             })
 
-        return extracted_tracks
+        return tracks
 
+    def get_disc_and_track_number(self, position):
+        """
+        Extrae correctamente el número de disco y pista de la posición.
+        Si la pista pertenece a un DVD, **se ignora**.
+        """
+        if not position:
+            return None, None
 
-def actualizar_caratula_en_bd(cd_id, cover_url):
-    """Actualiza la tabla fonoteca_cd con la URL de la carátula"""
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-
-    cursor.execute("""
-        UPDATE fonoteca_cd SET "carátula_cd" = ? WHERE id = ?
-    """, (cover_url, cd_id))  # ✅ Usamos "carátula_cd" con tilde
-
-    conn.commit()
-    conn.close()
-    print(f"✅ Carátula actualizada en la base de datos con la URL: {cover_url}")
-
-
-def insertar_en_base_de_datos(cd_id, tracks):
-    """Inserta las canciones en la tabla fonoteca_canciones"""
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-
-    for track in tracks:
-        cursor.execute("""
-            INSERT INTO fonoteca_canciones (id, disc_number, track_number, interprete_cancion, cancion)
-            VALUES (?, ?, ?, ?, ?)
-        """, (cd_id, track["disc_number"], track["track_number"], track["interprete_cancion"], track["cancion"]))
-
-    conn.commit()
-    conn.close()
-    print(f"✅ {len(tracks)} canciones añadidas a la fonoteca con ID de disco {cd_id}.")
-
-
-# 🔹 Pedir los IDs al usuario
-if __name__ == "__main__":
-    release_id = input("Introduce el ID del lanzamiento de Discogs: ").strip()
-    cd_id = input("Introduce el ID del disco en la tabla fonoteca_cd: ").strip()
-
-    if release_id.isdigit() and cd_id.isdigit():
-        extractor = DiscogsExtractor(int(release_id))
-        album_title = extractor.get_album_title()  # Obtener el nombre del disco
-        cover_url = extractor.get_album_cover_url()  # Obtener la URL de la carátula
-        tracks = extractor.extract_tracks()  # Obtener las canciones
-
-        print(f"\n📀 Álbum: {album_title}\n")
-        print(f"🖼️ Carátula: {cover_url}\n" if cover_url else "❌ No hay carátula disponible.\n")
-        print("🎵 Lista de canciones extraídas:\n")
-        for track in tracks:
-            print(f"Disco {track['disc_number']}, Pista {track['track_number']}: {track['interprete_cancion']} - {track['cancion']}")
-
-        # Confirmar si queremos guardar la información
-        confirmar = input("\n¿Quieres guardar estas canciones y actualizar la carátula en la base de datos? (s/n): ").strip().lower()
-        if confirmar == "s":
-            # Actualizar la URL de la carátula en la base de datos
-            if cover_url:
-                actualizar_caratula_en_bd(int(cd_id), cover_url)
-
-            # Insertar los datos en la base de datos
-            insertar_en_base_de_datos(int(cd_id), tracks)
+        if "-" in position:
+            parts = position.split("-")
+            disc_part = parts[0].upper()
+            track_part = parts[-1]
         else:
-            print("❌ Operación cancelada.")
+            disc_part = "CD1"  
+            track_part = position
 
-    else:
-        print("❌ Error: Ambos IDs deben ser números válidos.")
+        if "DVD" in disc_part:
+            return None, None  
+
+        disc_match = re.search(r'\d+', disc_part)
+        disc_number = int(disc_match.group()) if disc_match else 1
+
+        track_match = re.search(r'\d+', track_part)
+        track_number = int(track_match.group()) if track_match else None
+
+        return disc_number, track_number
+
+    def save_tracks_to_db(self, db_path):
+        """
+        Guarda las canciones en la base de datos SQLite.
+        """
+        tracks = self.extract_tracks()
+        if not tracks:
+            print("❌ No hay canciones para guardar.")
+            return
+
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+
+        for track in tracks:
+            disc_number = track["disc_number"]
+            track_number = track["track_number"]
+            interprete = track["interprete"]
+            title = track["title"]
+
+            cursor.execute("""
+                SELECT Id FROM fonoteca_canciones 
+                WHERE Id = ? AND disc_number = ? AND track_number = ? AND cancion = ? AND interprete_cancion = ?
+            """, (self.db_cd_id, disc_number, track_number, title, interprete))
+
+            exists = cursor.fetchone()
+
+            if not exists:
+                cursor.execute("""
+                    INSERT INTO fonoteca_canciones (Id, disc_number, track_number, interprete_cancion, cancion) 
+                    VALUES (?, ?, ?, ?, ?)
+                """, (self.db_cd_id, disc_number, track_number, interprete, title))
+                print(f"✅ Añadida: Disco {disc_number}, Pista {track_number} → {interprete} - {title}")
+            else:
+                print(f"⚠️ Ya existe: Disco {disc_number}, Pista {track_number} → {interprete} - {title}")
+
+        conn.commit()
+        conn.close()
+        print("\n✅ Guardado completado en la base de datos.")
+
+# 🔹 **Ejecución del código**
+if __name__ == "__main__":
+    release_id = input("Introduce el ID del lanzamiento de Discogs: ")
+    db_cd_id = input("Introduce el ID del disco en la tabla fonoteca_cd: ")
+
+    TOKEN = "TU_TOKEN_AQUI"
+    DB_PATH = "./db/FonotecaRadioUMH.db"
+
+    extractor = DiscogsExtractor(release_id, TOKEN, db_cd_id)
+    extractor.save_tracks_to_db(DB_PATH)

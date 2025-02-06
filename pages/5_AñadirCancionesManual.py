@@ -16,7 +16,7 @@ import time
 #
 # 📌 Configurar la barra lateral
 st.sidebar.title("Buscar Canciones en SPOTIFY")
-st.sidebar.caption("Versión 2.0 05/02/2025 10:07")
+st.sidebar.caption("Versión 2.0 06/02/2025 16:18")
 st.markdown(
     '''
     <style>
@@ -75,11 +75,6 @@ st.markdown(
 # .-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 #
 
-import streamlit as st
-import sqlite3
-import requests
-import time
-
 # 📌 Configuración de la base de datos SQLite
 DB_PATH = "./db/FonotecaRadioUMH.db"
 
@@ -121,9 +116,10 @@ def obtener_canciones_sin_url():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("""
-        SELECT id, interprete_cancion, cancion 
-        FROM fonoteca_canciones 
-        WHERE cancion_url IS NULL OR cancion_url = '';
+        SELECT Id, interprete_cancion, cancion
+        FROM fonoteca_canciones
+        WHERE no_buscar = 0
+        AND (cancion_url IS NULL OR cancion_url = '');
     """)
     canciones = cursor.fetchall()
     conn.close()
