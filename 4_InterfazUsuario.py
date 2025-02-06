@@ -5,7 +5,10 @@ import os
 import base64
 import unicodedata
 import sys
-
+# .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+# Interfaz de Usuario - Pantalla Principal
+# Versión 2.0 05/02/2025 09:27
+# .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
 # 🔹 Asegurar que Python use UTF-8
 sys.stdout.reconfigure(encoding='utf-8')
@@ -13,7 +16,8 @@ sys.stdout.reconfigure(encoding='utf-8')
 # configurar la estetica de la página
 #
 # 📌 Configurar la barra lateral
-# st.sidebar.title("Consultar la Fonoteca")
+st.sidebar.title("Consultar la Fonoteca")
+st.sidebar.caption("Versión 2.0 05/02/2025 09:27")
 st.markdown(
     '''
     <style>
