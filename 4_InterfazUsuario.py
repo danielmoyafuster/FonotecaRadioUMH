@@ -7,7 +7,7 @@ import unicodedata
 import sys
 # .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 # Interfaz de Usuario - Pantalla Principal
-# Versión 2.0 05/02/2025 09:27
+# Versión 3.0 09/02/2025 21:21
 # .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
 # 🔹 Asegurar que Python use UTF-8
@@ -17,7 +17,7 @@ sys.stdout.reconfigure(encoding='utf-8')
 #
 # 📌 Configurar la barra lateral
 st.sidebar.title("Consultar la Fonoteca")
-st.sidebar.caption("Versión 2.0 05/02/2025 09:27")
+st.sidebar.caption("Versión 3.0 09/02/2025 21:21")
 st.markdown(
     '''
     <style>
