@@ -7,7 +7,7 @@ import pandas as pd
 # 6_MarcarNoBuscarCanciones.py
 # Canciones que no encontramos por ningún sitio. Marcamos como
 # no buscar más
-# Versión 2.0 05/02/2025 10:07
+# Versión 2.0 07/02/2025 12:47
 # .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
 
@@ -17,7 +17,7 @@ import pandas as pd
 #
 # 📌 Configurar la barra lateral
 st.sidebar.title("Marcar No Buscar")
-st.sidebar.caption("Versión 2.0 05/02/2025 10:07")
+st.sidebar.caption("Versión 2.0 07/02/2025 12:47")
 st.markdown(
     '''
     <style>
@@ -79,6 +79,9 @@ st.markdown(
 #
 # .-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 #
+import streamlit as st
+import sqlite3
+import pandas as pd
 
 # 📌 Ruta de la base de datos SQLite
 DB_PATH = "./db/FonotecaRadioUMH.db"
@@ -138,6 +141,7 @@ else:
         if unique_key not in st.session_state.checkbox_states:
             st.session_state.checkbox_states[unique_key] = False
 
+        # Checkbox con el estado almacenado en `session_state`
         marcado = st.checkbox(f"{row['Intérprete']} - {row['Canción']}", key=unique_key, value=st.session_state.checkbox_states[unique_key])
 
         # Guardar el estado
@@ -146,7 +150,19 @@ else:
         if marcado:
             seleccionados.append((row["ID"], row["Disc Number"], row["Track Number"]))
 
-    # 🔹 Botón para aplicar cambios
+    # 🔹 Botón para seleccionar todas las canciones
+    if st.button("Seleccionar Todas"):
+        for key in st.session_state.checkbox_states:
+            st.session_state.checkbox_states[key] = True
+        st.rerun()  # Recargar la página para aplicar los cambios
+
+    # 🔹 Botón para desmarcar todas las canciones
+    if st.button("Desmarcar Todas"):
+        for key in st.session_state.checkbox_states:
+            st.session_state.checkbox_states[key] = False
+        st.rerun()  # Recargar la página para aplicar los cambios
+
+    # 🔹 Botón para aplicar cambios en la base de datos
     if st.button("Actualizar 'No Buscar' en la Base de Datos"):
         if marcar_no_buscar(seleccionados):
             st.success(f"✅ Se han marcado {len(seleccionados)} canciones como 'No buscar'.")

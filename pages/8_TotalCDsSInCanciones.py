@@ -73,44 +73,33 @@ st.markdown(
 #
 # .-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 #
+
 # 📌 Ruta de la base de datos
 DB_PATH = "./db/FonotecaRadioUMH.db"
 
-
-# 🔹 Definir la función ANTES de llamarla
-def ejecutar_consulta(sql_query):
-    # sql_query = "SELECT * FROM fonoteca_cd WHERE titulo_cd LIKE '%RESERVADA%';"
-    sql_query = "SELECT COUNT(*) FROM fonoteca_cd WHERE id_cd IS NULL OR id_cd = '';"
+# 🔹 Definir la función para ejecutar la consulta
+def ejecutar_consulta():
+    consulta = """
+    SELECT COUNT(*) AS total_cds_sin_canciones
+    FROM fonoteca_cd
+    WHERE id NOT IN (SELECT DISTINCT id FROM fonoteca_canciones);
+    """
 
     try:
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
-        cursor.execute(sql_query)
-
-        # Si la consulta devuelve resultados, los obtenemos
-        if sql_query.strip().lower().startswith("select"):
-            datos = cursor.fetchall()
-            columnas = [desc[0] for desc in cursor.description]
-            df = pd.DataFrame(datos, columns=columnas)
-            conn.close()
-            return df
-        else:
-            conn.commit()
-            conn.close()
-            return "✅ Consulta ejecutada correctamente."
-
+        cursor.execute(consulta)
+        resultado = cursor.fetchone()
+        conn.close()
+        return resultado[0] if resultado else 0
     except Exception as e:
         return f"❌ Error: {e}"
-
-# 📌 Ahora definimos la consulta
-consulta = "SELECT * FROM fonoteca_cd WHERE titulo_cd LIKE '%RESERVADA%';"
-resultado = ejecutar_consulta(consulta)
 
 # 📌 Interfaz de Streamlit
 st.markdown("<h2 style='color: #BD2830; text-align: center;'>CDs dados de alta sin canciones</h2>", unsafe_allow_html=True)
 
-if isinstance(resultado, pd.DataFrame) and not resultado.empty:
-    st.write("### Resultados de la consulta:")
-    st.dataframe(resultado)
-else:
-    st.warning("⚠️ No se encontraron resultados para 'RESERVADA'.")
+# 📌 Botón para ejecutar la consulta
+if st.button("Mostrar CDs sin canciones"):
+    with st.spinner("🔍 Consultando la base de datos..."):
+        total_cds = ejecutar_consulta()
+        st.success(f"📀 Hay **{total_cds} CDs** sin canciones registradas.")

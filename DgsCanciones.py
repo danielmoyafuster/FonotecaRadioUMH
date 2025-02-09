@@ -50,7 +50,6 @@ class DiscogsExtractor:
             print("⚠️ No se pudieron obtener los datos del lanzamiento.")
             return []
 
-        # 🔹 Obtener el artista principal del álbum
         album_artist = self.release_data.get("artists", [{}])[0].get("name", "Desconocido")
     
         tracks = []
@@ -60,17 +59,13 @@ class DiscogsExtractor:
             title = track.get('title', '').strip()
             artists = track.get('artists', [])
 
-            # ✅ Si la pista no tiene artistas, usar el artista del álbum
             interprete = ", ".join([artist['name'] for artist in artists]) if artists else album_artist
 
-            # 🔹 **LIMPIEZA DEL INTERPRETE**
-            interprete = re.sub(r'\*$', '', interprete).strip()  # Eliminar "*" al final
-            interprete = re.sub(r'\s*\(\d+\)', '', interprete).strip()  # Eliminar paréntesis con números
+            interprete = re.sub(r'\*$', '', interprete).strip()
+            interprete = re.sub(r'\s*\(\d+\)', '', interprete).strip()
             
-            # Extraer número de disco y pista
             disc_number, track_number = self.get_disc_and_track_number(position)
 
-            # ❌ Ignorar DVDs
             if disc_number is None or track_number is None:
                 continue  
 
@@ -148,6 +143,64 @@ class DiscogsExtractor:
         conn.close()
         print("\n✅ Guardado completado en la base de datos.")
 
+    def download_cd_cover(self, image_folder="./imagenes_cd/"):
+        """
+        Descarga la carátula del CD y la guarda en el directorio especificado.
+        También actualiza la base de datos con la ruta de la imagen.
+        """
+        if not self.release_data:
+            print("❌ No se pudo obtener la información del lanzamiento.")
+            return
+
+        images = self.release_data.get("images", [])
+        if not images:
+            print("⚠️ No hay imágenes disponibles para este CD en Discogs.")
+            return
+
+        image_url = images[0].get("uri")
+        if not image_url:
+            print("⚠️ No se encontró una URL de imagen válida.")
+            return
+
+        os.makedirs(image_folder, exist_ok=True)
+        image_path = os.path.join(image_folder, f"cd_{self.db_cd_id}.jpg")
+
+        try:
+            response = requests.get(image_url, stream=True)
+            if response.status_code == 200:
+                with open(image_path, "wb") as img_file:
+                    for chunk in response.iter_content(1024):
+                        img_file.write(chunk)
+                print(f"✅ Carátula descargada y guardada en: {image_path}")
+
+                self.update_cd_cover_in_db(image_path)
+            else:
+                print(f"❌ Error al descargar la imagen: {response.status_code}")
+
+        except Exception as e:
+            print(f"❌ Error al descargar la carátula: {e}")
+
+    def update_cd_cover_in_db(self, image_path, db_path="./db/FonotecaRadioUMH.db"):
+        """
+        Actualiza la base de datos para asignar la ruta de la carátula al CD correspondiente.
+        """
+        try:
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+
+            cursor.execute("""
+                UPDATE fonoteca_cd
+                SET carátula_cd = ?
+                WHERE Id = ?
+            """, (image_path, self.db_cd_id))
+
+            conn.commit()
+            conn.close()
+            print("✅ Base de datos actualizada con la carátula del CD.")
+
+        except Exception as e:
+            print(f"❌ Error al actualizar la base de datos: {e}")
+
 # 🔹 **Ejecución del código**
 if __name__ == "__main__":
     release_id = input("Introduce el ID del lanzamiento de Discogs: ")
@@ -158,3 +211,4 @@ if __name__ == "__main__":
 
     extractor = DiscogsExtractor(release_id, TOKEN, db_cd_id)
     extractor.save_tracks_to_db(DB_PATH)
+    extractor.download_cd_cover()

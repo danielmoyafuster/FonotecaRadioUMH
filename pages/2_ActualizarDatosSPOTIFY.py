@@ -4,7 +4,7 @@ import requests
 # .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 # 2_ActualizarDatosSPOTIFY.py
 # Actualizar Datos a CDs que no se encontraron automáticamente
-# Versión 2.0 05/02/2025 10:07
+# Versión 2.0 07/02/2025 11:50
 # .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 
 
@@ -13,7 +13,7 @@ import requests
 #
 # 📌 Configurar la barra lateral
 st.sidebar.title("Actualizar datos desde SPOTIFY")
-st.sidebar.caption("Versión 2.0 05/02/2025 10:07")
+st.sidebar.caption("Versión 2.0 07/02/2025 11:50")
 st.markdown(
     '''
     <style>
@@ -73,6 +73,7 @@ st.markdown(
 #
 
 
+
 # 📌 Ruta de la base de datos SQLite
 DB_PATH = "./db/FonotecaRadioUMH.db"
 
@@ -91,18 +92,31 @@ def obtener_token_spotify():
     data = response.json()
     return data.get("access_token")
 
-def obtener_caratula_spotify(id_cd_spotify, token):
-    """ Obtiene la URL de la carátula de un CD en Spotify """
+def obtener_info_spotify(id_cd_spotify, token):
+    """ Obtiene la carátula y el género musical de un CD en Spotify """
     url = f"https://api.spotify.com/v1/albums/{id_cd_spotify}"
     headers = {"Authorization": f"Bearer {token}"}
 
     response = requests.get(url, headers=headers)
     data = response.json()
 
-    if "images" in data and data["images"]:
-        return data["images"][0]["url"]
-    else:
-        return None  # Si no hay imagen, devuelve None
+    caratula_url = data["images"][0]["url"] if "images" in data and data["images"] else None
+    generos = ", ".join(data.get("genres", [])) if "genres" in data else None
+
+    return caratula_url, generos
+
+def obtener_genero_artista(artist_name, token):
+    """ Busca un artista en Spotify y obtiene su género musical si el álbum no lo tiene """
+    url = f"https://api.spotify.com/v1/search?q={artist_name}&type=artist&limit=1"
+    headers = {"Authorization": f"Bearer {token}"}
+
+    response = requests.get(url, headers=headers)
+    if response.status_code == 200:
+        data = response.json()
+        artists = data.get("artists", {}).get("items", [])
+        if artists:
+            return ", ".join(artists[0].get("genres", []))
+    return None
 
 def obtener_cds_sin_canciones():
     """ Obtiene los CDs de la tabla `fonoteca_cd` que no tienen canciones en `fonoteca_canciones` """
@@ -119,40 +133,36 @@ def obtener_cds_sin_canciones():
     conn.close()
     return cds
 
-def actualizar_id_cd_y_caratula(cd_id, nuevo_id_cd):
-    """ Actualiza el id_cd y la carátula en la base de datos """
+def actualizar_cd_en_bd(cd_id, nuevo_id_cd):
+    """ Actualiza `id_cd`, `carátula_cd` y `genero_musical` en la base de datos """
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
 
     try:
-        # 🔹 Actualizar id_cd
-        cursor.execute("UPDATE fonoteca_cd SET id_cd = ? WHERE id = ?;", (nuevo_id_cd, cd_id))
-        conn.commit()
-
         # 🔹 Obtener token de Spotify
         token = obtener_token_spotify()
 
-        # 🔹 Obtener la carátula del CD desde Spotify
-        caratula_url = obtener_caratula_spotify(nuevo_id_cd, token)
+        # 🔹 Obtener carátula y género musical desde Spotify
+        caratula_url, genero_musical = obtener_info_spotify(nuevo_id_cd, token)
 
-        if caratula_url:
-            cursor.execute("UPDATE fonoteca_cd SET carátula_cd = ? WHERE id = ?;", (caratula_url, cd_id))
-            conn.commit()
-            st.write(f"📀 Carátula guardada en la base de datos: {caratula_url}")  # 🔹 Debugging
+        # 🔹 Si no hay género en el álbum, buscar el del artista
+        if not genero_musical:
+            cursor.execute("SELECT autor FROM fonoteca_cd WHERE id = ?;", (cd_id,))
+            autor = cursor.fetchone()[0]
+            genero_musical = obtener_genero_artista(autor, token)
 
-        # 🔹 Verificación de que se guardó correctamente
-        cursor.execute("SELECT id_cd, carátula_cd FROM fonoteca_cd WHERE id = ?;", (cd_id,))
-        resultado = cursor.fetchone()
-        st.write(f"✅ Verificación en base de datos: ID_CD={resultado[0]}, Carátula={resultado[1]}")
+        # 🔹 Actualizar la base de datos
+        cursor.execute("UPDATE fonoteca_cd SET id_cd = ?, carátula_cd = ?, genero_musical = ? WHERE id = ?;",
+                       (nuevo_id_cd, caratula_url, genero_musical, cd_id))
+        conn.commit()
 
     except sqlite3.Error as e:
         st.error(f"❌ Error al actualizar la base de datos: {e}")
 
     finally:
-        conn.commit()
         conn.close()
 
-    return caratula_url
+    return caratula_url, genero_musical
 
 
 # 🔹 Obtener la lista de CDs sin canciones
@@ -169,7 +179,8 @@ else:
     if st.button("Actualizar CD en la base de datos"):
         if nuevo_id_cd.strip():
             cd_id = opciones[seleccion]
-            caratula_url = actualizar_id_cd_y_caratula(cd_id, nuevo_id_cd)
+            caratula_url, genero_musical = actualizar_cd_en_bd(cd_id, nuevo_id_cd)
+
             st.success(f"✅ `id_cd` actualizado correctamente para **{seleccion}**.")
 
             if caratula_url:
@@ -178,6 +189,11 @@ else:
             else:
                 st.warning("⚠️ No se encontró carátula para este CD en Spotify.")
 
-            st.warning("📢 Ahora puedes ejecutar ** Añadir Canciones Spotify** para sincronizar las canciones.")
+            if genero_musical:
+                st.success(f"🎵 Género musical obtenido: **{genero_musical}**")
+            else:
+                st.warning("⚠️ No se encontró género musical para este álbum o artista.")
+
+            st.warning("📢 Ahora puedes ejecutar **Añadir Canciones Spotify** para sincronizar las canciones.")
         else:
             st.error("⚠️ Debes ingresar un `id_cd` antes de actualizar.")
