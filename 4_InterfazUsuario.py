@@ -150,7 +150,7 @@ def buscar_canciones(criterio):
 st.markdown("<h2 style='color: #BD2830; text-align: center;'>Consultar la Fonoteca</h2>", unsafe_allow_html=True)
 
 # 🔹 Campo de búsqueda libre
-criterio = st.text_input("Introduce un término de búsqueda (CD, Canción, Intérprete, Número de CD):")
+criterio = st.text_input("Introduce un término de búsqueda (Titulo-CD, Canción, Intérprete, Número de CD):")
 
 # 🔹 Botón de búsqueda
 if st.button("Buscar"):
