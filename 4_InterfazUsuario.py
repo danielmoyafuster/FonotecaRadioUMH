@@ -5,10 +5,14 @@ import os
 import base64
 import unicodedata
 import sys
+
 # .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
 # Interfaz de Usuario - Pantalla Principal
-# Versión 4.0 12/02/2025 14:23
+# Versión 4.0 13/02/2025 07:30
 # .-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+# 📌 Asegurar que la página use todo el ancho disponible (Debe ser lo PRIMERO en el script)
+st.set_page_config(layout="wide")
+
 
 # 🔹 Asegurar que Python use UTF-8
 sys.stdout.reconfigure(encoding='utf-8')
@@ -17,7 +21,7 @@ sys.stdout.reconfigure(encoding='utf-8')
 #
 # 📌 Configurar la barra lateral
 st.sidebar.title("Consultar la Fonoteca")
-st.sidebar.caption("Versión 4.0 12/02/2025 14:23")
+st.sidebar.caption("Versión 4.0 13/02/2025 07:30")
 st.markdown(
     '''
     <style>
@@ -81,10 +85,6 @@ import pandas as pd
 import os
 import base64
 import unicodedata
-import sys
-
-# 🔹 Asegurar que Python use UTF-8
-sys.stdout.reconfigure(encoding='utf-8')
 
 # 📌 Ruta de la base de datos SQLite
 DB_PATH = "./db/FonotecaRadioUMH.db"
@@ -147,10 +147,11 @@ def buscar_canciones(criterio):
     return df
 
 # 📌 Interfaz de Streamlit
+
 st.markdown("<h2 style='color: #BD2830; text-align: center;'>Consultar la Fonoteca</h2>", unsafe_allow_html=True)
 
 # 🔹 Campo de búsqueda libre
-criterio = st.text_input("Introduce un término de búsqueda (Titulo-CD, Canción, Intérprete, Número de CD):")
+criterio = st.text_input("Introduce un término de búsqueda (CD, Canción, Intérprete, Número de CD):")
 
 # 🔹 Botón de búsqueda
 if st.button("Buscar"):
@@ -160,45 +161,108 @@ if st.button("Buscar"):
         if not resultados.empty:
             st.write(f"### Resultados encontrados ({len(resultados)}):")
 
-            table_data = []
+            table_html = """
+            <style>
+                .modal {
+                    display: none;
+                    position: fixed;
+                    z-index: 1000;
+                    left: 0;
+                    top: 0;
+                    width: 100%;
+                    height: 100%;
+                    background-color: rgba(0, 0, 0, 0.8);
+                    text-align: center;
+                }
+                .modal-content {
+                    max-width: 90vw;
+                    max-height: 90vh;
+                    margin: auto;
+                    display: block;
+                    border-radius: 10px;
+                }
+                .modal img {
+                    width: auto;
+                    max-width: 90%;
+                    height: auto;
+                    max-height: 90%;
+                    margin-top: 5%;
+                }
+                .table-container {
+                    overflow-x: auto;
+                    width: 100%;
+                }
+                table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    table-layout: fixed;
+                }
+                th, td {
+                    padding: 12px;
+                    text-align: left;
+                    border-bottom: 1px solid #ddd;
+                    white-space: normal;
+                    word-wrap: break-word;
+                    width: auto;
+                }
+                th {
+                    background-color: #f4f4f4;
+                }
+                img {
+                    cursor: pointer;
+                    width: 80px;
+                    transition: 0.3s;
+                }
+                img:hover {
+                    opacity: 0.7;
+                }
+            </style>
+            
+            <div id="myModal" class="modal" onclick="document.getElementById('myModal').style.display='none'">
+                <span class="close" onclick="document.getElementById('myModal').style.display='none'">&times;</span>
+                <img class="modal-content" id="modalImg">
+            </div>
+            
+            <script>
+                function openModal(src) {
+                    var modal = document.getElementById('myModal');
+                    modal.style.display = 'block';
+                    document.getElementById('modalImg').src = src;
+                }
+            </script>
 
-            for idx, row in resultados.iterrows():
+            <div class="table-container">
+                <table>
+                    <tr>
+                        <th style="width: 100px;">Carátula</th>
+                        <th style="width: 100px;">Número</th>
+                        <th style="min-width: 300px;">Título</th>
+                        <th style="min-width: 250px;">Autor</th>
+                        <th style="min-width: 250px;">Intérprete</th>
+                        <th style="width: 80px;">CD</th>
+                        <th style="width: 80px;">Pista</th>
+                        <th style="min-width: 300px;">Canción</th>
+                    </tr>
+            """
+
+            for _, row in resultados.iterrows():
                 caratula = row["CARÁTULA"]
                 ruta_imagen = caratula.strip()
 
-                # 🔹 Si la imagen es una URL o una imagen local
                 if ruta_imagen.startswith("http"):
-                    imagen_display = f'<img src="{ruta_imagen}" width="80">'
+                    imagen_display = f'<img src="{ruta_imagen}" onclick="openModal(\'{ruta_imagen}\')">'
                 else:
-                    if os.path.exists(ruta_imagen):
-                        base64_str = convertir_imagen_a_base64(ruta_imagen)
-                        if base64_str:
-                            img_tag = f"data:image/jpeg;base64,{base64_str}"
-                            imagen_display = f'<img src="{img_tag}" width="80">'
-                        else:
-                            imagen_display = "⚠️ No se pudo cargar la imagen."
-                    else:
-                        imagen_display = "❌ Imagen no encontrada."
+                    imagen_display = "❌ Imagen no encontrada."
 
-                # 🔹 Si la URL está vacía, solo mostrar el título
                 cancion_display = row["CANCION"]
                 if row["URL"].strip():
                     cancion_display = f'<a href="{row["URL"]}" target="_blank">{cancion_display}</a>'
 
-                # 🔹 Agregar fila a la tabla
-                table_data.append([
-                    imagen_display, row["NÚM"], row["TITULO"], row["AUTOR"], 
-                    row["INTERPRETE"], row["CD"], row["PISTA"], cancion_display
-                ])
+                table_html += f"<tr><td>{imagen_display}</td><td>{row['NÚM']}</td><td>{row['TITULO']}</td><td>{row['AUTOR']}</td><td>{row['INTERPRETE']}</td><td>{row['CD']}</td><td>{row['PISTA']}</td><td>{cancion_display}</td></tr>"
 
-            # 🔹 Convertir la tabla a HTML
-            table_html = "<table><tr><th>Carátula</th><th>Número</th><th>Título</th><th>Autor</th><th>Intérprete</th><th>CD</th><th>Pista</th><th>Canción</th></tr>"
-            for row in table_data:
-                table_html += "<tr>" + "".join(f"<td>{col}</td>" for col in row) + "</tr>"
-            table_html += "</table>"
+            table_html += "</table></div>"
 
-            # 🔹 Mostrar la tabla
-            st.markdown(table_html, unsafe_allow_html=True)
+            st.components.v1.html(table_html, height=900, scrolling=True)
 
         else:
             st.warning("No se encontraron resultados.")
